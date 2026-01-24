@@ -1,56 +1,56 @@
-# --- Compiler and Tool Definitions ---
-CC      := gcc
-# -Iinclude: Tells the compiler to look for header files in the /include directory
-CFLAGS  := -g -Wall -Wextra -Werror -Iinclude
-LDFLAGS := -lcurl
+CC             := gcc
+CFLAGS_DEBUG   := -g -Wall -Wextra -Werror -Iinclude
+CFLAGS_RELEASE := -O2 -Wall -Wextra -Werror -Iinclude -DNDEBUG
+LDFLAGS        := -lcurl
 
-# --- Directory Definitions ---
-SRC_DIR   := src
-INC_DIR   := include
-OBJ_DIR   := obj
-BUILD_DIR := build
+SRC_DIR     := src
+INC_DIR     := include
+OBJ_DIR     := obj
+BUILD_DIR   := build
+RELEASE_DIR := $(BUILD_DIR)/release
 
-# --- File Discovery ---
-# Finds all .c files in src/ and subdirectories
 SOURCES := $(shell find $(SRC_DIR) -name '*.c') main.c
-# Maps .c files to .o files inside the obj/ directory
 OBJECTS := $(SOURCES:%.c=$(OBJ_DIR)/%.o)
 
-# The final binary name
-TARGET := $(BUILD_DIR)/main
+TARGET_DEBUG  := $(BUILD_DIR)/main
+TARGET_RELEASE := $(RELEASE_DIR)/main
 
-# --- Build Rules ---
+all: debug
 
-# Default target
-all: $(TARGET)
+debug: CFLAGS := $(CFLAGS_DEBUG)
+debug: $(TARGET_DEBUG)
 
-# Linking: Combines object files into the final executable
-$(TARGET): $(OBJECTS)
+$(TARGET_DEBUG): $(OBJECTS)
 	@mkdir -p $(BUILD_DIR)
-	@echo "Linking executable: $@"
+	@echo "Linking executable (debug): $@"
 	$(CC) $(OBJECTS) -o $@ $(LDFLAGS)
 
-# Compilation: Converts .c files into .o files
-# The -c flag tells GCC to compile but not link
+
+release: CFLAGS := $(CFLAGS_RELEASE)
+release: $(TARGET_RELEASE)
+
+$(TARGET_RELEASE): $(OBJECTS)
+	@mkdir -p $(RELEASE_DIR)
+	@echo "Linking executable (release): $@"
+	$(CC) $(OBJECTS) -o $@ $(LDFLAGS)
+
+
 $(OBJ_DIR)/%.o: %.c
 	@mkdir -p $(dir $@)
 	@echo "Compiling source: $<"
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# --- Utility Targets ---
+.PHONY: all debug release clean run valgrind
 
-# Change this line
-.PHONY: clean run valgrin
-
-# Removes all generated build and object files
 clean:
 	@echo "Cleaning workspace..."
 	rm -rf $(OBJ_DIR) $(BUILD_DIR)
 
-# Compiles and runs the program
 run: all
-	./$(TARGET)
+	./$(TARGET_DEBUG)
 
-# Runs memory leak detection
+run-release: release
+	./$(TARGET_RELEASE)
+
 valgrind: all
-	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./$(TARGET)
+	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./$(TARGET_DEBUG)
