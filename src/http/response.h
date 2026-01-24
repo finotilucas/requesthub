@@ -1,8 +1,8 @@
-#include <curl/curl.h>
-#include <stdio.h>
-
 #ifndef RESPONSE_H
 #define RESPONSE_H
+
+#include <curl/curl.h>
+#include <stddef.h>
 
 typedef struct {
   CURLcode curl_code;
@@ -22,7 +22,8 @@ typedef struct {
   struct curl_slist *all_headers;
 } HttpResponse;
 
-size_t write_callback(void *contents, size_t size, size_t nmemb, void *userp);
+HttpResponse *http_response_create(void);
 void http_response_free(HttpResponse *response);
+size_t write_callback(void *contents, size_t size, size_t nmemb, void *userp);
 
 #endif

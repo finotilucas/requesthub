@@ -1,25 +1,27 @@
 #include "response.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-size_t write_callback(void *contents, size_t size, size_t nmemb, void *userp) {
-  size_t realsize = size * nmemb;
-  HttpResponse *response = (HttpResponse *)userp;
-
-  char *ptr = realloc(response->body, response->body_size + realsize + 1);
-  if (ptr == NULL) {
-    fprintf(stderr, "Erro: sem memória\n");
-    return 0;
+HttpResponse *http_response_create(void) {
+  HttpResponse *response = calloc(1, sizeof(HttpResponse));
+  if (response == NULL) {
+    return NULL;
   }
 
-  response->body = ptr;
+  response->body = malloc(1);
+  if (response->body == NULL) {
+    free(response);
+    return NULL;
+  }
 
-  memcpy(&(response->body[response->body_size]), contents, realsize);
-  response->body_size += realsize;
-  response->body[response->body_size] = '\0';
+  response->body[0] = '\0';
+  response->body_size = 0;
+  response->curl_code = CURLE_OK;
+  response->http_status = 0;
 
-  return realsize;
+  return response;
 }
 
 void http_response_free(HttpResponse *response) {
@@ -27,13 +29,32 @@ void http_response_free(HttpResponse *response) {
     return;
   }
 
-  if (response->body != NULL) {
-    free(response->body);
-  }
+  free(response->body);
+  free(response->content_type);
+  free(response->header_location);
+  free(response->etag);
 
-  if (response->content_type != NULL) {
-    free(response->content_type);
+  if (response->all_headers != NULL) {
+    curl_slist_free_all(response->all_headers);
   }
 
   free(response);
+}
+
+size_t write_callback(void *contents, size_t size, size_t nmemb, void *userp) {
+  size_t realsize = size * nmemb;
+  HttpResponse *response = (HttpResponse *)userp;
+
+  char *ptr = realloc(response->body, response->body_size + realsize + 1);
+  if (ptr == NULL) {
+    fprintf(stderr, "Erro: no memory\n");
+    return 0;
+  }
+
+  response->body = ptr;
+  memcpy(&(response->body[response->body_size]), contents, realsize);
+  response->body_size += realsize;
+  response->body[response->body_size] = '\0';
+
+  return realsize;
 }
