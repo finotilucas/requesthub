@@ -2,11 +2,14 @@
 #include "src/http/request.h"
 #include "src/http/response.h"
 
+#include <curl/curl.h>
 #include <stdio.h>
 #include <time.h>
 
 int main() {
   clock_t start = clock();
+  curl_global_init(CURL_GLOBAL_ALL);
+
 
   HttpRequest *request = NULL;
   const char *url = "https://jsonplaceholder.typicode.com/todos/1";
@@ -21,6 +24,8 @@ int main() {
 
   http_request_free(request);
   request = NULL;
+
+  curl_global_cleanup();
 
   clock_t stop = clock();
   double elapsed = (double)(stop - start) * 1000.0 / CLOCKS_PER_SEC;

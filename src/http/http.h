@@ -5,9 +5,9 @@
 #define HTTP_H
 
 // HttpResponse *http_request_perform(HttpRequest *req);
-HttpResponse *get(const char *url);
-// HttpResponse *post(const char *url, const char *body);
-// HttpResponse *put(const char *url, const char *body);
-// HttpResponse *delete (const char *url);
+HttpResponse *http_get(HttpRequest *request);
+// HttpResponse *http_post(const char *url, const char *body);
+// HttpResponse *http_put(const char *url, const char *body);
+// HttpResponse *http_delete (const char *url);
 
 #endif

@@ -22,5 +22,7 @@ typedef struct {
   struct curl_slist *all_headers;
 } HttpResponse;
 
-size_t write_callback(void *ptr, size_t size, size_t nmemb, HttpResponse *s);
+size_t write_callback(void *contents, size_t size, size_t nmemb, void *userp);
+void http_response_free(HttpResponse *response);
+
 #endif
