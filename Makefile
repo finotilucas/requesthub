@@ -1,6 +1,6 @@
 CC             := gcc
 CFLAGS_DEBUG   := -g -Wall -Wextra -Werror -Iinclude
-CFLAGS_RELEASE := -O2 -Wall -Wextra -Werror -Iinclude -DNDEBUG
+CFLAGS_RELEASE := -03 -Wall -Wextra -Werror -Iinclude -DNDEBUG
 LDFLAGS        := -lcurl
 
 SRC_DIR     := src
