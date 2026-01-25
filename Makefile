@@ -1,52 +1,49 @@
-CC             := gcc
+CC             := cc
 
 GTK_CFLAGS     := $(shell pkg-config --cflags gtk4)
 GTK_LIBS       := $(shell pkg-config --libs gtk4)
 
-CFLAGS_DEBUG   := -g -Wall -Wextra -Werror -Iinclude $(GTK_CFLAGS)
-CFLAGS_RELEASE := -O3 -Wall -Wextra -Werror -Iinclude -DNDEBUG $(GTK_CFLAGS)
+COMMON_CFLAGS  := -Wall -Wextra -Werror -Iinclude $(GTK_CFLAGS)
 
-LDFLAGS        := -lcurl $(GTK_LIBS)
+CFLAGS_DEBUG   := -g $(COMMON_CFLAGS)
+CFLAGS_RELEASE := -O3 -DNDEBUG $(COMMON_CFLAGS)
+LDFLAGS        := $(GTK_LIBS) -lcurl
 
 SRC_DIR        := src
-INC_DIR        := include
 OBJ_DIR        := obj
 BUILD_DIR      := build
-RELEASE_DIR    := $(BUILD_DIR)/release
 
 SOURCES        := $(shell find $(SRC_DIR) -name '*.c') main.c
 OBJECTS        := $(SOURCES:%.c=$(OBJ_DIR)/%.o)
 
 TARGET_DEBUG   := $(BUILD_DIR)/main
-TARGET_RELEASE := $(RELEASE_DIR)/main
+TARGET_RELEASE := $(BUILD_DIR)/release/main
+
+CFLAGS := $(CFLAGS_DEBUG)
 
 all: debug
 
 debug: CFLAGS := $(CFLAGS_DEBUG)
 debug: $(TARGET_DEBUG)
 
-$(TARGET_DEBUG): $(OBJECTS)
-	@mkdir -p $(BUILD_DIR)
-	@echo "Linking executable (debug): $@"
-	$(CC) $(OBJECTS) -o $@ $(LDFLAGS)
-
 release: CFLAGS := $(CFLAGS_RELEASE)
 release: $(TARGET_RELEASE)
 
+$(TARGET_DEBUG): $(OBJECTS)
+	@mkdir -p $(BUILD_DIR)
+	$(CC) $(OBJECTS) -o $@ $(LDFLAGS)
+
 $(TARGET_RELEASE): $(OBJECTS)
-	@mkdir -p $(RELEASE_DIR)
-	@echo "Linking executable (release): $@"
+	@mkdir -p $(BUILD_DIR)/release
 	$(CC) $(OBJECTS) -o $@ $(LDFLAGS)
 
 $(OBJ_DIR)/%.o: %.c
 	@mkdir -p $(dir $@)
-	@echo "Compiling source: $<"
+	@echo "Compiling: $<"
 	$(CC) $(CFLAGS) -c $< -o $@
 
-.PHONY: all debug release clean run valgrind rebuild
-
+.PHONY: all debug release clean
 clean:
-	@echo "Cleaning workspace..."
 	rm -rf $(OBJ_DIR) $(BUILD_DIR)
 
 run: all

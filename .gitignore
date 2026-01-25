@@ -57,6 +57,11 @@ dkms.conf
 # valgrind binaries
 vgcore.*
 
+# cache
+.cache
+
 # build folders
 build
 obj
+
+compile_commands*

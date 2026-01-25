@@ -21,7 +21,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#include <curl/curl.h>
 #include <gtk/gtk.h>
 
 static void on_activate(GtkApplication *app, gpointer user_data) {
