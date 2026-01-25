@@ -21,41 +21,31 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-
-#include "src/http/http.h"
-#include "src/http/request.h"
 #include <curl/curl.h>
-#include <stdio.h>
+#include <gtk/gtk.h>
+
+static void on_activate(GtkApplication *app, gpointer user_data) {
+  (void)user_data;
+
+  GtkWidget *window = gtk_application_window_new(app);
+  gtk_window_set_title(GTK_WINDOW(window), "RequestHub");
+  gtk_window_set_default_size(GTK_WINDOW(window), 800, 600);
+
+  GtkWidget *label = gtk_label_new("RequestHub");
+  gtk_window_set_child(GTK_WINDOW(window), label);
+
+  gtk_window_present(GTK_WINDOW(window));
+}
 
 int main(void) {
-  clock_t start = clock();
+  GtkApplication *app;
+  int status;
 
-  curl_global_init(CURL_GLOBAL_ALL);
+  app = gtk_application_new("com.requesthub.app", G_APPLICATION_DEFAULT_FLAGS);
+  g_signal_connect(app, "activate", G_CALLBACK(on_activate), NULL);
 
-  const char *url = "https://jsonplaceholder.typicode.com/comments";
+  status = g_application_run(G_APPLICATION(app), 0, NULL);
 
-  HttpRequest *req = http_request_new(url, GET);
-
-  http_request_add_query_param(req, "postId", "10");
-
-  if (req == NULL) {
-    fprintf(stderr, "Erro ao criar request\n");
-    return 1;
-  }
-
-  HttpResponse *resp = http_request_perform(req);
-
-  if (resp != NULL) {
-    printf("Status: %ld\n", resp->http_status);
-    printf("Body: %s\n", resp->body);
-    http_response_free(resp);
-  }
-
-  http_request_free(req);
-  curl_global_cleanup();
-
-  clock_t stop = clock();
-  double elapsed = (double)(stop - start) * 1000.0 / CLOCKS_PER_SEC;
-  printf("Time elapsed in ms: %.2f\n", elapsed);
-  return 0;
+  g_object_unref(app);
+  return status;
 }
