@@ -13,10 +13,10 @@ typedef struct {
   int query_count;
   long timeout;
   long connect_timeout;
-  int follow_redirects;
-  int max_redirects;
+  long follow_redirects;
+  long max_redirects;
   char *auth_header;
-  int verify_ssl;
+  long verify_ssl;
 } HttpRequest;
 
 HttpRequest *http_request_new(const char *url, HttpMethods method);

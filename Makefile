@@ -1,6 +1,6 @@
 CC             := gcc
 CFLAGS_DEBUG   := -g -Wall -Wextra -Werror -Iinclude
-CFLAGS_RELEASE := -03 -Wall -Wextra -Werror -Iinclude -DNDEBUG
+CFLAGS_RELEASE := -O3 -Wall -Wextra -Werror -Iinclude -DNDEBUG
 LDFLAGS        := -lcurl
 
 SRC_DIR     := src
@@ -51,6 +51,10 @@ run: all
 
 run-release: release
 	./$(TARGET_RELEASE)
+
+rebuild:
+	$(MAKE) clean
+	$(MAKE) release
 
 valgrind: all
 	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./$(TARGET_DEBUG)

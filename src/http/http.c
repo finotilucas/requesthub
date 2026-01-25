@@ -93,11 +93,12 @@ static void configure_curl_options(CURL *curl, HttpRequest *request,
   if (request->connect_timeout > 0) {
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, request->connect_timeout);
   }
-  curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, request->follow_redirects);
+  curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION,
+                   (long)request->follow_redirects);
   if (request->max_redirects > 0) {
-    curl_easy_setopt(curl, CURLOPT_MAXREDIRS, request->max_redirects);
+    curl_easy_setopt(curl, CURLOPT_MAXREDIRS, (long)request->max_redirects);
   }
-  curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, request->verify_ssl);
+  curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, (long)request->verify_ssl);
   curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, request->verify_ssl ? 2L : 0L);
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
   curl_easy_setopt(curl, CURLOPT_WRITEDATA, response);
