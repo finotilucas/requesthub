@@ -5,9 +5,9 @@ GTK_LIBS       := $(shell pkg-config --libs gtk4)
 
 COMMON_CFLAGS  := -Wall -Wextra -Werror -Iinclude $(GTK_CFLAGS)
 
-CFLAGS_DEBUG   := -g $(COMMON_CFLAGS)
+CFLAGS_DEBUG   := -g -fsanitize=address $(COMMON_CFLAGS)
 CFLAGS_RELEASE := -O3 -DNDEBUG $(COMMON_CFLAGS)
-LDFLAGS        := $(GTK_LIBS) -lcurl
+LDFLAGS        := -fsanitize=address $(GTK_LIBS) -lcurl
 
 SRC_DIR        := src
 OBJ_DIR        := obj
