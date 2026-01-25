@@ -8,9 +8,12 @@ int main(void) {
 
   curl_global_init(CURL_GLOBAL_ALL);
 
-  const char *url = "https://jsonplaceholder.typicode.com/todos/1";
+  const char *url = "https://jsonplaceholder.typicode.com/comments";
 
   HttpRequest *req = http_request_new(url, GET);
+
+  http_request_add_query_param(req, "postId", "10");
+
   if (req == NULL) {
     fprintf(stderr, "Erro ao criar request\n");
     return 1;
