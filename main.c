@@ -56,28 +56,33 @@ static void on_window_destroy(gpointer data, GObject *where_the_object_was) {
 
 static GtkWidget *create_top_bar(AppWidgets *widgets) {
   GtkWidget *box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+
   gtk_widget_set_margin_start(box, 10);
   gtk_widget_set_margin_end(box, 10);
   gtk_widget_set_margin_top(box, 10);
+  gtk_widget_set_margin_bottom(box, 10);
 
   const char **methods = http_methods_get_list();
-
   GtkStringList *list = gtk_string_list_new(methods);
+
   GtkWidget *dropdown = gtk_drop_down_new(G_LIST_MODEL(list), NULL);
-  widgets->method_dropdown = GTK_DROP_DOWN(dropdown);
+
+  g_object_unref(list);
 
   gtk_widget_set_size_request(dropdown, 120, -1);
+  widgets->method_dropdown = GTK_DROP_DOWN(dropdown);
 
   GtkWidget *entry = gtk_entry_new();
-  gtk_entry_set_placeholder_text(GTK_ENTRY(entry), "https://api.exemple.com");
+  gtk_entry_set_placeholder_text(GTK_ENTRY(entry), "https://api.example.com");
 
   gtk_widget_set_hexpand(entry, TRUE);
-
   widgets->url_entry = GTK_ENTRY(entry);
 
   GtkWidget *button = gtk_button_new_with_label("Enviar");
 
   gtk_widget_add_css_class(button, "suggested-action");
+
+  gtk_widget_set_size_request(button, 100, -1);
 
   g_signal_connect(button, "clicked", G_CALLBACK(on_send_clicked), widgets);
 
