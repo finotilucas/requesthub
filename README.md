@@ -49,4 +49,4 @@ Copyright (c) 2026 Lucas Finoti
 
 [See more about the license][license]
 
-[license]: https://github.com/FinotiLucas/Correios-Brasil/blob/master/LICENSE
+[license]: https://spdx.org/licenses/GPL-2.0-or-later.html
