@@ -1,22 +1,25 @@
-/***************************************************************************
+/*******************************************************************************
+ * REQUEST HUB
+ * =============================================================================
+ * Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
  *
- * =========================================================================
- * Copyright (C) Lucas Finoti, <lucas.finoti@protonmail.com>, et al.
+ * This file is part of RequestHub.
  *
- * This software is licensed as described in the file COPYING, which
- * you should have received as part of this distribution. The terms
- * are also available at https://curl.se/docs/copyright.html.
+ * RequestHub is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
  *
- * You may opt to use, copy, modify, merge, publish, distribute and/or sell
- * copies of the Software, and permit persons to whom the Software is
- * furnished to do so, under the terms of the COPYING file.
+ * RequestHub is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
  *
- * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
- * KIND, either express or implied.
+ * You should have received a copy of the GNU General Public License
+ * along with RequestHub. If not, see <https://www.gnu.org/licenses/>.
  *
- * SPDX-License-Identifier: curl
- *
- ***************************************************************************/
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ ******************************************************************************/
 
 #include "http.h"
 #include "request.h"
