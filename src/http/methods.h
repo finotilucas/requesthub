@@ -8,7 +8,7 @@
  * RequestHub is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 2 of the License, or
- * (at your option) any later version.
+ * any later version.
  *
  * RequestHub is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -35,5 +35,7 @@ typedef enum {
 } HttpMethods;
 
 const char *method_to_string(HttpMethods method);
+
+const char **http_methods_get_list(void);
 
 #endif

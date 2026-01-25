@@ -8,7 +8,7 @@
  * RequestHub is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 2 of the License, or
- * (at your option) any later version.
+ * any later version.
  *
  * RequestHub is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -22,24 +22,17 @@
  ******************************************************************************/
 
 #include "methods.h"
+#include <stddef.h>
+
+// Definimos o array estático aqui para que ele viva durante toda a execução
+static const char *methods_strings[] = {"GET",   "POST", "PUT",     "DELETE",
+                                        "PATCH", "HEAD", "OPTIONS", NULL};
 
 const char *method_to_string(HttpMethods method) {
-  switch (method) {
-  case GET:
-    return "GET";
-  case POST:
-    return "POST";
-  case PUT:
-    return "PUT";
-  case DELETE:
-    return "DELETE";
-  case PATCH:
-    return "PATCH";
-  case HEAD:
-    return "HEAD";
-  case OPTIONS:
-    return "OPTIONS";
-  default:
-    return "UNKNOWN";
+  if (method >= 0 && method <= OPTIONS) {
+    return methods_strings[method];
   }
+  return "UNKNOWN";
 }
+
+const char **http_methods_get_list(void) { return methods_strings; }
