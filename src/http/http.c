@@ -26,34 +26,50 @@
 #include "response.h"
 
 #include <curl/curl.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 static void configure_method(CURL *curl, HttpRequest *request) {
+  curl_easy_setopt(curl, CURLOPT_POST, 0L);
+  curl_easy_setopt(curl, CURLOPT_NOBODY, 0L);
+  curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, NULL);
+
   switch (request->method) {
   case GET:
     break;
   case POST:
     curl_easy_setopt(curl, CURLOPT_POST, 1L);
-    if (request->body)
+    if (request->body) {
       curl_easy_setopt(curl, CURLOPT_POSTFIELDS, request->body);
+    } else {
+      curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "");
+      curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, 0L);
+    }
     break;
   case PUT:
     curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
-    if (request->body)
+    if (request->body) {
       curl_easy_setopt(curl, CURLOPT_POSTFIELDS, request->body);
+    } else {
+      curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "");
+      curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, 0L);
+    }
     break;
   case DELETE:
     curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
     break;
   case PATCH:
     curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PATCH");
-    if (request->body)
+    if (request->body) {
       curl_easy_setopt(curl, CURLOPT_POSTFIELDS, request->body);
+    } else {
+      curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "");
+      curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, 0L);
+    }
     break;
   case HEAD:
     curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
-    curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "HEAD");
     break;
   case OPTIONS:
     curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "OPTIONS");
@@ -87,32 +103,46 @@ static void configure_curl_options(CURL *curl, HttpRequest *request,
                                    struct curl_slist *headers, char *url) {
   curl_easy_setopt(curl, CURLOPT_URL, url);
   configure_method(curl, request);
+
   if (headers) {
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
   }
+
   if (request->timeout > 0) {
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, request->timeout);
   }
   if (request->connect_timeout > 0) {
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, request->connect_timeout);
   }
+
   curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION,
                    (long)request->follow_redirects);
   if (request->max_redirects > 0) {
     curl_easy_setopt(curl, CURLOPT_MAXREDIRS, (long)request->max_redirects);
   }
+
   curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, (long)request->verify_ssl);
   curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, request->verify_ssl ? 2L : 0L);
+
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
   curl_easy_setopt(curl, CURLOPT_WRITEDATA, response);
 }
 
 static void extract_response_info(CURL *curl, HttpResponse *response) {
   curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response->http_status);
+
   char *content_type = NULL;
   curl_easy_getinfo(curl, CURLINFO_CONTENT_TYPE, &content_type);
-  if (content_type)
+
+  if (response->content_type) {
+    free(response->content_type);
+    response->content_type = NULL;
+  }
+
+  if (content_type) {
     response->content_type = strdup(content_type);
+  }
+
   curl_easy_getinfo(curl, CURLINFO_TOTAL_TIME, &response->total_time);
 }
 
@@ -121,8 +151,9 @@ static char *build_query_string(HttpRequest *request) {
     return NULL;
 
   size_t total_len = 2;
-  for (int i = 0; i < request->query_count; i++)
+  for (int i = 0; i < request->query_count; i++) {
     total_len += strlen(request->query_params[i]) + 1;
+  }
 
   char *query = malloc(total_len);
   if (!query)
@@ -145,20 +176,21 @@ HttpResponse *http_request_perform(HttpRequest *request) {
     return NULL;
 
   char *query_string = build_query_string(request);
-  size_t base_len = strlen(request->url);
-  size_t query_len = query_string ? strlen(query_string) : 0;
+  size_t final_url_len =
+      strlen(request->url) + (query_string ? strlen(query_string) : 0) + 1;
 
-  char *final_url = malloc(base_len + query_len + 1);
+  char *final_url = malloc(final_url_len);
   if (!final_url) {
     free(query_string);
     return NULL;
   }
 
-  memcpy(final_url, request->url, base_len);
-  if (query_string)
-    memcpy(final_url + base_len, query_string, query_len);
-  final_url[base_len + query_len] = '\0';
-  free(query_string);
+  if (query_string) {
+    snprintf(final_url, final_url_len, "%s%s", request->url, query_string);
+    free(query_string);
+  } else {
+    snprintf(final_url, final_url_len, "%s", request->url);
+  }
 
   HttpResponse *response = http_response_create();
   if (!response) {
@@ -176,13 +208,13 @@ HttpResponse *http_request_perform(HttpRequest *request) {
   struct curl_slist *headers = build_headers_list(request);
   configure_curl_options(curl, request, response, headers, final_url);
 
-  CURLcode result = curl_easy_perform(curl);
-  response->curl_code = result;
+  response->curl_code = curl_easy_perform(curl);
 
   extract_response_info(curl, response);
 
-  if (headers)
+  if (headers) {
     curl_slist_free_all(headers);
+  }
   curl_easy_cleanup(curl);
   free(final_url);
 

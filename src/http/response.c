@@ -23,9 +23,12 @@
 
 #include "response.h"
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#define MAX_RESPONSE_SIZE (10 * 1024 * 1024) // 10mb
 
 HttpResponse *http_response_create(void) {
   HttpResponse *response = calloc(1, sizeof(HttpResponse));
@@ -65,12 +68,22 @@ void http_response_free(HttpResponse *response) {
 }
 
 size_t write_callback(void *contents, size_t size, size_t nmemb, void *userp) {
+  if (size > 0 && nmemb > SIZE_MAX / size) {
+    return 0;
+  }
+
   size_t realsize = size * nmemb;
   HttpResponse *response = (HttpResponse *)userp;
 
+  if (response->body_size + realsize > MAX_RESPONSE_SIZE) {
+    fprintf(stderr, "Error: Response exceeds the limit of %d bytes\n",
+            MAX_RESPONSE_SIZE);
+    return 0;
+  }
+
   char *ptr = realloc(response->body, response->body_size + realsize + 1);
   if (ptr == NULL) {
-    fprintf(stderr, "Erro: no memory\n");
+    fprintf(stderr, "Error: Failed to allocate memory\n");
     return 0;
   }
 

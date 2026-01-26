@@ -21,8 +21,13 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
+#include "src/http/http.h"
 #include "src/http/methods.h"
+#include "src/http/request.h"
+
+#include <curl/curl.h>
 #include <gtk/gtk.h>
+#include <stdio.h>
 
 typedef struct {
   GtkDropDown *method_dropdown;
@@ -44,6 +49,27 @@ static void on_send_clicked(GtkButton *btn, gpointer user_data) {
 
   const char *method_str = method_to_string(method);
   const char *url = gtk_editable_get_text(GTK_EDITABLE(widgets->url_entry));
+
+  HttpRequest *req = http_request_new(url, method);
+
+  http_request_add_query_param(req, "id", "10");
+
+  if (req == NULL) {
+    fprintf(stderr, "Erro ao criar request\n");
+    return;
+  }
+
+  HttpResponse *resp = http_request_perform(req);
+
+  if (resp != NULL) {
+    printf("Status: %ld\n", resp->http_status);
+    printf("Duration: %f\n", resp->total_time);
+    printf("Content Type: %s\n", resp->content_type);
+    printf("Body: %s\n", resp->body);
+    http_response_free(resp);
+  }
+
+  http_request_free(req);
 
   g_print("Request send: %s %s\n", method_str, url);
 }
@@ -112,11 +138,15 @@ int main(int argc, char **argv) {
   GtkApplication *app;
   int status;
 
+  curl_global_init(CURL_GLOBAL_ALL);
+
   app = gtk_application_new("com.requesthub.app", G_APPLICATION_DEFAULT_FLAGS);
   g_signal_connect(app, "activate", G_CALLBACK(on_activate), NULL);
 
   status = g_application_run(G_APPLICATION(app), argc, argv);
   g_object_unref(app);
+
+  curl_global_cleanup();
 
   return status;
 }
