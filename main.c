@@ -22,6 +22,7 @@
  ******************************************************************************/
 
 #include "src/http/http.h"
+#include "src/http/http_pool.h"
 #include "src/http/methods.h"
 #include "src/http/request.h"
 
@@ -63,7 +64,7 @@ static void on_send_clicked(GtkButton *btn, gpointer user_data) {
 
   if (resp != NULL) {
     printf("Status: %ld\n", resp->http_status);
-    printf("Duration: %f\n", resp->total_time);
+    printf("Duration: %.2f\n", resp->total_time * 1000);
     printf("Content Type: %s\n", resp->content_type);
     printf("Body: %s\n", resp->body);
     http_response_free(resp);
@@ -139,6 +140,7 @@ int main(int argc, char **argv) {
   int status;
 
   curl_global_init(CURL_GLOBAL_ALL);
+  http_pool_init();
 
   app = gtk_application_new("com.requesthub.app", G_APPLICATION_DEFAULT_FLAGS);
   g_signal_connect(app, "activate", G_CALLBACK(on_activate), NULL);
@@ -146,6 +148,7 @@ int main(int argc, char **argv) {
   status = g_application_run(G_APPLICATION(app), argc, argv);
   g_object_unref(app);
 
+  http_pool_cleanup();
   curl_global_cleanup();
 
   return status;

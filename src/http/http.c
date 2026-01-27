@@ -22,6 +22,7 @@
  ******************************************************************************/
 
 #include "http.h"
+#include "http_pool.h"
 #include "request.h"
 #include "response.h"
 
@@ -34,6 +35,7 @@ static void configure_method(CURL *curl, HttpRequest *request) {
   curl_easy_setopt(curl, CURLOPT_POST, 0L);
   curl_easy_setopt(curl, CURLOPT_NOBODY, 0L);
   curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, NULL);
+  curl_easy_setopt(curl, CURLOPT_FORBID_REUSE, 0L);
 
   switch (request->method) {
   case GET:
@@ -111,21 +113,41 @@ static void configure_curl_options(CURL *curl, HttpRequest *request,
   if (request->timeout > 0) {
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, request->timeout);
   }
+
   if (request->connect_timeout > 0) {
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, request->connect_timeout);
   }
 
   curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION,
                    (long)request->follow_redirects);
+
   if (request->max_redirects > 0) {
     curl_easy_setopt(curl, CURLOPT_MAXREDIRS, (long)request->max_redirects);
   }
 
   curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, (long)request->verify_ssl);
+
   curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, request->verify_ssl ? 2L : 0L);
 
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+
   curl_easy_setopt(curl, CURLOPT_WRITEDATA, response);
+
+  curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0);
+
+  curl_easy_setopt(curl, CURLOPT_TCP_KEEPALIVE, 1L);
+  curl_easy_setopt(curl, CURLOPT_TCP_KEEPIDLE, 120L);
+  curl_easy_setopt(curl, CURLOPT_TCP_KEEPINTVL, 60L);
+
+  curl_easy_setopt(curl, CURLOPT_TCP_NODELAY, 1L);
+
+  curl_easy_setopt(curl, CURLOPT_DNS_CACHE_TIMEOUT, 120L);
+
+  curl_easy_setopt(curl, CURLOPT_BUFFERSIZE, 102400L);
+
+  curl_easy_setopt(curl, CURLOPT_ACCEPT_ENCODING, "");
+
+  curl_easy_setopt(curl, CURLOPT_SSL_SESSIONID_CACHE, 1L);
 }
 
 static void extract_response_info(CURL *curl, HttpResponse *response) {
@@ -198,7 +220,8 @@ HttpResponse *http_request_perform(HttpRequest *request) {
     return NULL;
   }
 
-  CURL *curl = curl_easy_init();
+  CURL *curl = http_pool_acquire();
+
   if (!curl) {
     free(final_url);
     http_response_free(response);
@@ -215,7 +238,9 @@ HttpResponse *http_request_perform(HttpRequest *request) {
   if (headers) {
     curl_slist_free_all(headers);
   }
-  curl_easy_cleanup(curl);
+
+  http_pool_release(curl);
+
   free(final_url);
 
   return response;
