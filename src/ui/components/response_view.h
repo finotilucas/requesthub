@@ -31,7 +31,5 @@
 G_DECLARE_FINAL_TYPE(ResponseView, response_view, RESPONSE, VIEW, GtkBox)
 
 ResponseView *response_view_new(void);
-
 void response_view_clear(ResponseView *self);
-
 void response_view_set_response(ResponseView *self, HttpResponse *resp);

@@ -25,7 +25,7 @@
 
 #include <stdio.h>
 
-char *format_size(size_t bytes) {
+char *format_response_size(size_t bytes) {
   const char *units[] = {"B", "KB", "MB", "GB", "TB"};
   int i = 0;
   double size = (double)bytes;
@@ -40,7 +40,7 @@ char *format_size(size_t bytes) {
   return g_strdup_printf("%.2f %s", size, units[i]);
 }
 
-char *format_time(double milliseconds) {
+char *format_response_time(double milliseconds) {
   if (milliseconds >= 1000.0) {
     return g_strdup_printf("%.2f s", milliseconds / 1000.0);
   }

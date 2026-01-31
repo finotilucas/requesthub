@@ -24,7 +24,7 @@
 #include "response_view.h"
 
 #include "../../utils/format.h"
-#include "../../utils/json_viewer.h"
+#include "json_view.h"
 
 #include <cjson/cJSON.h>
 #include <glib.h>
@@ -146,12 +146,12 @@ void response_view_set_response(ResponseView *self, HttpResponse *resp) {
   apply_status_style(GTK_WIDGET(self->status_value_label),
                      (int)resp->http_status);
 
-  char *time_str = format_time(resp->total_time * 1000.0);
+  char *time_str = format_response_time(resp->total_time * 1000.0);
   gtk_label_set_text(self->time_label, time_str);
   g_free(time_str);
 
   size_t body_len = resp->body ? strlen(resp->body) : 0;
-  char *size_str = format_size(body_len);
+  char *size_str = format_response_size(body_len);
   gtk_label_set_text(self->size_label, size_str);
   g_free(size_str);
 

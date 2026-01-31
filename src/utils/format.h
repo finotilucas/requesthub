@@ -26,7 +26,7 @@
 
 #include <glib.h>
 
-char *format_size(size_t bytes);
-char *format_time(double milliseconds);
+char *format_response_size(size_t bytes);
+char *format_response_time(double milliseconds);
 
 #endif

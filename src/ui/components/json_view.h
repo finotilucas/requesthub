@@ -21,8 +21,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#ifndef JSON_VIEWER_H
-#define JSON_VIEWER_H
+#ifndef JSON_VIEW_H
+#define JSON_VIEW_H
 
 #include <cjson/cJSON.h>
 #include <gtk/gtk.h>
