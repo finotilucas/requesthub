@@ -42,7 +42,8 @@ $(OBJ_DIR)/%.o: %.c
 	@echo "Compiling: $<"
 	$(CC) $(CFLAGS) -c $< -o $@
 
-.PHONY: all debug release clean
+.PHONY: all debug release clean run run-release rebuild valgrind bear
+
 clean:
 	rm -rf $(OBJ_DIR) $(BUILD_DIR)
 
@@ -58,3 +59,6 @@ rebuild:
 
 valgrind: all
 	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./$(TARGET_DEBUG)
+
+bear:
+	bear -- $(MAKE) clean all

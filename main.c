@@ -1,13 +1,12 @@
-#include "src/ui/components/request_top_bar.h"
-#include "src/ui/components/response_view.h"
-
 #include "src/http/http.h"
 #include "src/http/http_pool.h"
 #include "src/http/request.h"
+#include "src/ui/components/request_top_bar.h"
+#include "src/ui/components/response_view.h"
+#include "src/utils/css.h"
 
 #include <curl/curl.h>
 #include <gtk/gtk.h>
-#include <stdio.h>
 
 static void on_send_clicked(RequestTopBar *bar, gpointer user_data) {
   ResponseView *view = user_data;
@@ -26,6 +25,9 @@ static void on_send_clicked(RequestTopBar *bar, gpointer user_data) {
 }
 
 static void on_activate(GtkApplication *app) {
+  load_css();
+  watch_css_file("src/ui/styles/app.css");
+
   GtkWidget *window = gtk_application_window_new(app);
   gtk_window_set_title(GTK_WINDOW(window), "RequestHub");
   gtk_window_set_default_size(GTK_WINDOW(window), 800, 600);

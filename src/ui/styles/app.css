@@ -1,0 +1,22 @@
+.badge {
+    padding: 4px;
+    border-radius: 4px;
+    background-color: #343a40;
+    color: #f8f9fa;
+    font-weight: bold;
+    min-width: 64px;
+    min-height: 20px;
+}
+
+.badge-success {
+    background-color: #90a955;
+}
+
+.badge-warning {
+    background-color: #f4e285;
+    color: black;
+}
+
+.badge-error {
+    background-color: #bc4749;
+}

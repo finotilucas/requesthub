@@ -21,17 +21,28 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#pragma once
+#include "format.h"
 
-#include "../../http/response.h"
-#include <gtk/gtk.h>
+#include <stdio.h>
 
-#define RESPONSE_TYPE_VIEW (response_view_get_type())
+char *format_size(size_t bytes) {
+  const char *units[] = {"B", "KB", "MB", "GB", "TB"};
+  int i = 0;
+  double size = (double)bytes;
 
-G_DECLARE_FINAL_TYPE(ResponseView, response_view, RESPONSE, VIEW, GtkBox)
+  while (size >= 1024 && i < 4) {
+    size /= 1024;
+    i++;
+  }
 
-ResponseView *response_view_new(void);
+  if (i == 0)
+    return g_strdup_printf("%zu %s", bytes, units[i]);
+  return g_strdup_printf("%.2f %s", size, units[i]);
+}
 
-void response_view_clear(ResponseView *self);
-
-void response_view_set_response(ResponseView *self, HttpResponse *resp);
+char *format_time(double milliseconds) {
+  if (milliseconds >= 1000.0) {
+    return g_strdup_printf("%.2f s", milliseconds / 1000.0);
+  }
+  return g_strdup_printf("%.0f ms", milliseconds);
+}
