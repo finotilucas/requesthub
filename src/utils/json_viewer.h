@@ -21,12 +21,14 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#ifndef JSON_H
-#define JSON_H
+#ifndef JSON_VIEWER_H
+#define JSON_VIEWER_H
 
 #include <cjson/cJSON.h>
 #include <gtk/gtk.h>
+#include <gtksourceview/gtksource.h>
 
-void json_highlighted_to_buffer(cJSON *item, GtkTextBuffer *buffer, int indent);
+GtkWidget *json_view_new(GtkSourceBuffer **out_buffer);
+void json_buffer_set_from_cjson(GtkTextBuffer *buffer, const cJSON *item);
 
 #endif

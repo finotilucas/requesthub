@@ -22,10 +22,14 @@
  ******************************************************************************/
 
 #include "response_view.h"
-#include "../../utils/format.h"
-#include "../../utils/json_highlighter.h"
-#include "glib.h"
 
+#include "../../utils/format.h"
+#include "../../utils/json_viewer.h"
+
+#include <cjson/cJSON.h>
+#include <glib.h>
+#include <gtk/gtk.h>
+#include <gtksourceview/gtksource.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -37,7 +41,8 @@ struct _ResponseView {
   GtkLabel *time_label;
   GtkLabel *size_label;
 
-  GtkTextView *body_view;
+  GtkSourceView *body_view;
+  GtkSourceBuffer *body_buffer;
 };
 
 G_DEFINE_TYPE(ResponseView, response_view, GTK_TYPE_BOX)
@@ -57,6 +62,15 @@ static void apply_status_style(GtkWidget *label, int status) {
     gtk_widget_add_css_class(label, "badge-error");
   else
     gtk_widget_add_css_class(label, "badge-neutral");
+}
+
+static void response_view_finalize(GObject *object) {
+  ResponseView *self = RESPONSE_VIEW(object);
+
+  if (self->body_buffer)
+    g_object_unref(self->body_buffer);
+
+  G_OBJECT_CLASS(response_view_parent_class)->finalize(object);
 }
 
 static void response_view_init(ResponseView *self) {
@@ -89,10 +103,11 @@ static void response_view_init(ResponseView *self) {
   gtk_widget_set_valign(GTK_WIDGET(self->time_label), GTK_ALIGN_CENTER);
   gtk_widget_set_valign(GTK_WIDGET(self->size_label), GTK_ALIGN_CENTER);
 
-  /* Body */
-  self->body_view = GTK_TEXT_VIEW(gtk_text_view_new());
-  gtk_text_view_set_editable(self->body_view, FALSE);
-  gtk_text_view_set_monospace(self->body_view, TRUE);
+  /* Body – GtkSourceView */
+  self->body_view = GTK_SOURCE_VIEW(json_view_new(&self->body_buffer));
+
+  gtk_text_view_set_editable(GTK_TEXT_VIEW(self->body_view), FALSE);
+  gtk_text_view_set_monospace(GTK_TEXT_VIEW(self->body_view), TRUE);
 
   GtkWidget *scrolled = gtk_scrolled_window_new();
   gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(scrolled),
@@ -102,7 +117,10 @@ static void response_view_init(ResponseView *self) {
   gtk_box_append(GTK_BOX(self), scrolled);
 }
 
-static void response_view_class_init(ResponseViewClass *klass) { (void)klass; }
+static void response_view_class_init(ResponseViewClass *klass) {
+  GObjectClass *object_class = G_OBJECT_CLASS(klass);
+  object_class->finalize = response_view_finalize;
+}
 
 ResponseView *response_view_new(void) {
   return g_object_new(RESPONSE_TYPE_VIEW, NULL);
@@ -113,8 +131,7 @@ void response_view_clear(ResponseView *self) {
 
   gtk_widget_set_visible(self->header_container, FALSE);
 
-  GtkTextBuffer *buffer = gtk_text_view_get_buffer(self->body_view);
-  gtk_text_buffer_set_text(buffer, "", -1);
+  gtk_text_buffer_set_text(GTK_TEXT_BUFFER(self->body_buffer), "", -1);
 }
 
 void response_view_set_response(ResponseView *self, HttpResponse *resp) {
@@ -140,19 +157,18 @@ void response_view_set_response(ResponseView *self, HttpResponse *resp) {
 
   gtk_widget_set_visible(self->header_container, TRUE);
 
-  GtkTextBuffer *buffer = gtk_text_view_get_buffer(self->body_view);
-
   if (resp->body && g_utf8_validate(resp->body, -1, NULL)) {
     cJSON *json = cJSON_Parse(resp->body);
 
     if (json) {
-      gtk_text_buffer_set_text(buffer, "", -1);
-      json_highlighted_to_buffer(json, buffer, 0);
+      json_buffer_set_from_cjson(GTK_TEXT_BUFFER(self->body_buffer), json);
       cJSON_Delete(json);
     } else {
-      gtk_text_buffer_set_text(buffer, resp->body, -1);
+      gtk_text_buffer_set_text(GTK_TEXT_BUFFER(self->body_buffer), resp->body,
+                               -1);
     }
   } else {
-    gtk_text_buffer_set_text(buffer, "[Binary or Invalid Content]", -1);
+    gtk_text_buffer_set_text(GTK_TEXT_BUFFER(self->body_buffer),
+                             "[Binary or Invalid Content]", -1);
   }
 }

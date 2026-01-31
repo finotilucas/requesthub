@@ -6,8 +6,11 @@ GTK_LIBS       := $(shell pkg-config --libs gtk4)
 CJSON_CFLAGS := -I/usr/include/cjson
 CJSON_LIBS   := -lcjson
 
-COMMON_CFLAGS := -Wall -Wextra -Werror -Iinclude $(GTK_CFLAGS) $(CJSON_CFLAGS)
-LDFLAGS       := -fsanitize=address $(GTK_LIBS) -lcurl $(CJSON_LIBS)
+SOURCEVIEW_CFLAGS := $(shell pkg-config --cflags gtksourceview-5)
+SOURCEVIEW_LIBS   := $(shell pkg-config --libs gtksourceview-5)
+
+COMMON_CFLAGS := -Wall -Wextra -Werror -Iinclude $(GTK_CFLAGS) $(CJSON_CFLAGS) $(SOURCEVIEW_CFLAGS)
+LDFLAGS       := -fsanitize=address $(GTK_LIBS) -lcurl $(CJSON_LIBS) $(SOURCEVIEW_LIBS)
 
 CFLAGS_DEBUG   := -g -fsanitize=address $(COMMON_CFLAGS)
 CFLAGS_RELEASE := -O3 -DNDEBUG $(COMMON_CFLAGS)
