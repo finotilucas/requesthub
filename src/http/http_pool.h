@@ -28,7 +28,7 @@
 #include <pthread.h>
 #include <time.h>
 
-#define MAX_POOL_SIZE 10
+#define MAX_POOL_SIZE 100
 #define CONNECTION_TIMEOUT_SECONDS 60
 
 typedef struct {
