@@ -3,11 +3,14 @@ CC             := cc
 GTK_CFLAGS     := $(shell pkg-config --cflags gtk4)
 GTK_LIBS       := $(shell pkg-config --libs gtk4)
 
-COMMON_CFLAGS  := -Wall -Wextra -Werror -Iinclude $(GTK_CFLAGS)
+CJSON_CFLAGS := -I/usr/include/cjson
+CJSON_LIBS   := -lcjson
+
+COMMON_CFLAGS := -Wall -Wextra -Werror -Iinclude $(GTK_CFLAGS) $(CJSON_CFLAGS)
+LDFLAGS       := -fsanitize=address $(GTK_LIBS) -lcurl $(CJSON_LIBS)
 
 CFLAGS_DEBUG   := -g -fsanitize=address $(COMMON_CFLAGS)
 CFLAGS_RELEASE := -O3 -DNDEBUG $(COMMON_CFLAGS)
-LDFLAGS        := -fsanitize=address $(GTK_LIBS) -lcurl
 
 SRC_DIR        := src
 OBJ_DIR        := obj

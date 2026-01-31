@@ -23,7 +23,10 @@
 
 #include "response_view.h"
 #include "../../utils/format.h"
+#include "../../utils/json_highlighter.h"
+#include "glib.h"
 
+#include <stdio.h>
 #include <string.h>
 
 struct _ResponseView {
@@ -140,7 +143,15 @@ void response_view_set_response(ResponseView *self, HttpResponse *resp) {
   GtkTextBuffer *buffer = gtk_text_view_get_buffer(self->body_view);
 
   if (resp->body && g_utf8_validate(resp->body, -1, NULL)) {
-    gtk_text_buffer_set_text(buffer, resp->body, -1);
+    cJSON *json = cJSON_Parse(resp->body);
+
+    if (json) {
+      gtk_text_buffer_set_text(buffer, "", -1);
+      json_highlighted_to_buffer(json, buffer, 0);
+      cJSON_Delete(json);
+    } else {
+      gtk_text_buffer_set_text(buffer, resp->body, -1);
+    }
   } else {
     gtk_text_buffer_set_text(buffer, "[Binary or Invalid Content]", -1);
   }

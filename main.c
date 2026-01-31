@@ -3,7 +3,7 @@
 #include "src/http/request.h"
 #include "src/ui/components/request_top_bar.h"
 #include "src/ui/components/response_view.h"
-#include "src/utils/css.h"
+#include "src/utils/css_loader.h"
 
 #include <curl/curl.h>
 #include <gtk/gtk.h>
