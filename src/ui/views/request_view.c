@@ -21,15 +21,30 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#pragma once
+#include "request_view.h"
 
-#include "../../http/response.h"
-#include <gtk/gtk.h>
+struct _RequestView {
+  GtkBox parent_instance;
+  RequestTopBar *top_bar;
+};
 
-#define RESPONSE_TYPE_CONTENT (response_content_get_type())
+G_DEFINE_TYPE(RequestView, request_view, GTK_TYPE_BOX)
 
-G_DECLARE_FINAL_TYPE(ResponseContent, response_content, RESPONSE, CONTENT, GtkBox)
+static void request_view_init(RequestView *self) {
+  gtk_orientable_set_orientation(GTK_ORIENTABLE(self),
+                                 GTK_ORIENTATION_VERTICAL);
+  gtk_widget_set_size_request(GTK_WIDGET(self), 300, -1);
 
-ResponseContent *response_content_new(void);
-void response_content_clear(ResponseContent *self);
-void response_content_set_response(ResponseContent *self, HttpResponse *resp);
+  self->top_bar = request_top_bar_new();
+  gtk_box_append(GTK_BOX(self), GTK_WIDGET(self->top_bar));
+}
+
+static void request_view_class_init(RequestViewClass *klass) { (void)klass; }
+
+RequestView *request_view_new(void) {
+  return g_object_new(REQUEST_TYPE_VIEW, NULL);
+}
+
+RequestTopBar *request_view_get_top_bar(RequestView *self) {
+  return self->top_bar;
+}

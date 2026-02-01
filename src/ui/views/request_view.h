@@ -23,13 +23,11 @@
 
 #pragma once
 
-#include "../../http/response.h"
+#include "../components/request_top_bar.h"
 #include <gtk/gtk.h>
 
-#define RESPONSE_TYPE_CONTENT (response_content_get_type())
+#define REQUEST_TYPE_VIEW (request_view_get_type())
+G_DECLARE_FINAL_TYPE(RequestView, request_view, REQUEST, VIEW, GtkBox)
 
-G_DECLARE_FINAL_TYPE(ResponseContent, response_content, RESPONSE, CONTENT, GtkBox)
-
-ResponseContent *response_content_new(void);
-void response_content_clear(ResponseContent *self);
-void response_content_set_response(ResponseContent *self, HttpResponse *resp);
+RequestView *request_view_new(void);
+RequestTopBar *request_view_get_top_bar(RequestView *self);

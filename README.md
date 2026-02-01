@@ -82,7 +82,6 @@ _Tests performed on the same network conditions_
 
 ## Known Limitations
 
-- No graphical user interface yet (library only)
 - Pool size is fixed at compile time
 - No built-in retry logic
 - No automatic rate limiting
@@ -90,7 +89,6 @@ _Tests performed on the same network conditions_
 
 ## Roadmap
 
-- [ ] Add GUI using GTK4
 - [ ] Implement request/response history
 - [ ] Add request collections
 - [ ] Environment variables support

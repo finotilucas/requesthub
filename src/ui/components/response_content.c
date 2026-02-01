@@ -66,7 +66,7 @@ static void response_content_init(ResponseContent *self) {
 }
 
 ResponseContent *response_content_new(void) {
-  return g_object_new(RESPONSE_TYPE_VIEW, NULL);
+  return g_object_new(RESPONSE_TYPE_CONTENT, NULL);
 }
 
 void response_content_clear(ResponseContent *self) {

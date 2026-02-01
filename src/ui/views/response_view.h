@@ -22,14 +22,11 @@
  ******************************************************************************/
 
 #pragma once
-
 #include "../../http/response.h"
 #include <gtk/gtk.h>
 
-#define RESPONSE_TYPE_CONTENT (response_content_get_type())
+#define RESPONSE_TYPE_VIEW (response_view_get_type())
+G_DECLARE_FINAL_TYPE(ResponseView, response_view, RESPONSE, VIEW, GtkBox)
 
-G_DECLARE_FINAL_TYPE(ResponseContent, response_content, RESPONSE, CONTENT, GtkBox)
-
-ResponseContent *response_content_new(void);
-void response_content_clear(ResponseContent *self);
-void response_content_set_response(ResponseContent *self, HttpResponse *resp);
+ResponseView *response_view_new(void);
+void response_view_update(ResponseView *self, HttpResponse *resp);
