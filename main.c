@@ -27,16 +27,19 @@
 #include "src/ui/views/request_view.h"
 #include "src/ui/views/response_view.h"
 #include "src/utils/css_loader.h"
-
+#include "src/utils/shortcuts_factory.h"
 #include <curl/curl.h>
 #include <gtk/gtk.h>
 
 typedef struct {
   ResponseView *response_view;
+  RequestView *request_view;
 } AppContext;
 
 static void on_send_clicked(RequestTopBar *bar, gpointer user_data) {
   AppContext *ctx = (AppContext *)user_data;
+  if (!ctx)
+    return;
 
   const char *url = request_top_bar_get_url(bar);
   HttpMethods method = request_top_bar_get_method(bar);
@@ -50,36 +53,55 @@ static void on_send_clicked(RequestTopBar *bar, gpointer user_data) {
   http_request_free(req);
 }
 
+static void on_shortcut_send_wrapper(GSimpleAction *action, GVariant *parameter,
+                                     gpointer user_data) {
+  GtkWidget *window = GTK_WIDGET(user_data);
+  AppContext *ctx = g_object_get_data(G_OBJECT(window), "app-ctx");
+
+  if (ctx && ctx->request_view) {
+    RequestTopBar *bar = request_view_get_top_bar(ctx->request_view);
+    on_send_clicked(bar, ctx);
+  }
+
+  (void)action;
+  (void)parameter;
+}
+
 static void on_activate(GtkApplication *app) {
   load_css();
   watch_css_file("src/ui/styles/app.css");
 
   GtkSettings *settings = gtk_settings_get_default();
-  g_object_set(settings, "gtk-theme-name", "Adwaita-dark", NULL);
-  g_object_set(settings, "gtk-application-prefer-dark-theme", TRUE, NULL);
+  g_object_set(settings, "gtk-theme-name", "Adwaita-dark",
+               "gtk-application-prefer-dark-theme", TRUE, NULL);
 
   GtkWidget *window = gtk_application_window_new(app);
   gtk_window_set_default_size(GTK_WINDOW(window), 1000, 700);
 
   GtkWidget *paned = gtk_paned_new(GTK_ORIENTATION_HORIZONTAL);
-
   RequestView *request_view = request_view_new();
   ResponseView *response_view = response_view_new();
 
   gtk_paned_set_start_child(GTK_PANED(paned), GTK_WIDGET(request_view));
   gtk_paned_set_end_child(GTK_PANED(paned), GTK_WIDGET(response_view));
-
-  gtk_paned_set_shrink_start_child(GTK_PANED(paned), FALSE);
-  gtk_paned_set_shrink_end_child(GTK_PANED(paned), FALSE);
   gtk_paned_set_position(GTK_PANED(paned), 450);
 
   AppContext *ctx = g_new0(AppContext, 1);
   ctx->response_view = response_view;
+  ctx->request_view = request_view;
 
   g_signal_connect(request_view_get_top_bar(request_view), "send-clicked",
                    G_CALLBACK(on_send_clicked), ctx);
 
   g_object_set_data_full(G_OBJECT(window), "app-ctx", ctx, g_free);
+
+  static const ShortcutEntry app_shortcuts[] = {
+      {"send_request", "<Control>Return", on_shortcut_send_wrapper},
+  };
+
+  setup_application_shortcuts(app, GTK_APPLICATION_WINDOW(window),
+                              app_shortcuts, G_N_ELEMENTS(app_shortcuts));
+
   gtk_window_set_child(GTK_WINDOW(window), paned);
   gtk_window_present(GTK_WINDOW(window));
 }
