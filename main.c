@@ -107,6 +107,21 @@ static void on_shortcut_send_wrapper(GSimpleAction *action, GVariant *parameter,
   (void)parameter;
 }
 
+static void on_shortcut_focus_url_wrapper(GSimpleAction *action,
+                                          GVariant *parameter,
+                                          gpointer user_data) {
+  GtkWidget *window = GTK_WIDGET(user_data);
+  AppContext *ctx = g_object_get_data(G_OBJECT(window), "app-ctx");
+
+  if (ctx && ctx->request_view) {
+    RequestTopBar *bar = request_view_get_top_bar(ctx->request_view);
+    request_top_bar_focus_url(bar);
+  }
+
+  (void)action;
+  (void)parameter;
+}
+
 static void on_activate(GtkApplication *app) {
   load_css();
   watch_css_file("src/ui/styles/app.css");
@@ -137,6 +152,7 @@ static void on_activate(GtkApplication *app) {
 
   static const ShortcutEntry app_shortcuts[] = {
       {"send_request", "<Control>Return", on_shortcut_send_wrapper},
+      {"focus_url", "<Control>l", on_shortcut_focus_url_wrapper},
   };
 
   setup_application_shortcuts(app, GTK_APPLICATION_WINDOW(window),

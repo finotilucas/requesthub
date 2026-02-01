@@ -33,3 +33,4 @@ RequestTopBar *request_top_bar_new(void);
 const char *request_top_bar_get_url(RequestTopBar *self);
 HttpMethods request_top_bar_get_method(RequestTopBar *self);
 void request_top_bar_set_loading(RequestTopBar *self, gboolean is_loading);
+void request_top_bar_focus_url(RequestTopBar *self);

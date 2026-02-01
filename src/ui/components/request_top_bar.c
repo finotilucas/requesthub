@@ -125,3 +125,11 @@ const char *request_top_bar_get_url(RequestTopBar *self) {
 HttpMethods request_top_bar_get_method(RequestTopBar *self) {
   return (HttpMethods)gtk_drop_down_get_selected(self->method_dropdown);
 }
+
+void request_top_bar_focus_url(RequestTopBar *self) {
+    g_return_if_fail(REQUEST_IS_TOP_BAR(self));
+    gtk_widget_grab_focus(GTK_WIDGET(self->url_entry));
+
+    GtkEditable *editable = GTK_EDITABLE(self->url_entry);
+    gtk_editable_select_region(editable, 0, -1);
+}
