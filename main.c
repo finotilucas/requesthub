@@ -4,7 +4,6 @@
 #include "src/ui/components/request_top_bar.h"
 #include "src/ui/components/response_content.h"
 #include "src/ui/components/response_top_bar.h"
-#include "src/ui/components/response_content.h"
 #include "src/utils/css_loader.h"
 
 #include <curl/curl.h>
@@ -44,6 +43,7 @@ static void on_activate(GtkApplication *app) {
   RequestTopBar *request_bar = request_top_bar_new();
   GtkWidget *left_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
   gtk_box_append(GTK_BOX(left_box), GTK_WIDGET(request_bar));
+  gtk_widget_set_size_request(left_box, 300, -1);
 
   ResponseTopBar *res_top_bar = response_top_bar_new();
   ResponseContent *res_view = response_content_new();
@@ -51,9 +51,13 @@ static void on_activate(GtkApplication *app) {
   GtkWidget *right_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
   gtk_box_append(GTK_BOX(right_box), GTK_WIDGET(res_top_bar));
   gtk_box_append(GTK_BOX(right_box), GTK_WIDGET(res_view));
+  gtk_widget_set_size_request(right_box, 300, -1);
 
   gtk_paned_set_start_child(GTK_PANED(paned), left_box);
   gtk_paned_set_end_child(GTK_PANED(paned), right_box);
+  gtk_paned_set_shrink_start_child(GTK_PANED(paned), FALSE);
+  gtk_paned_set_shrink_end_child(GTK_PANED(paned), FALSE);
+
   gtk_paned_set_position(GTK_PANED(paned), 400);
 
   ResponseContext *ctx = g_new0(ResponseContext, 1);
