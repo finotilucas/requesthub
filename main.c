@@ -55,7 +55,7 @@ static void on_activate(GtkApplication *app) {
   watch_css_file("src/ui/styles/app.css");
 
   GtkSettings *settings = gtk_settings_get_default();
-  g_object_set(settings, "gtk-theme-name", "Adwaita", NULL);
+  g_object_set(settings, "gtk-theme-name", "Adwaita-dark", NULL);
   g_object_set(settings, "gtk-application-prefer-dark-theme", TRUE, NULL);
 
   GtkWidget *window = gtk_application_window_new(app);

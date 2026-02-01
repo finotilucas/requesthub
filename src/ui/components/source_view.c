@@ -49,8 +49,9 @@ static void source_view_setup_theme(GtkSourceBuffer *buffer) {
   GtkSourceStyleScheme *scheme =
       gtk_source_style_scheme_manager_get_scheme(sm, "Adwaita-dark");
 
-  if (scheme)
+  if (scheme) {
     gtk_source_buffer_set_style_scheme(buffer, scheme);
+  }
 }
 
 GtkWidget *source_view_new(GtkSourceBuffer **out_buffer) {

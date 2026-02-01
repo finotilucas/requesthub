@@ -36,7 +36,7 @@ G_DEFINE_TYPE(ResponseView, response_view, GTK_TYPE_BOX)
 static void response_view_init(ResponseView *self) {
   gtk_orientable_set_orientation(GTK_ORIENTABLE(self),
                                  GTK_ORIENTATION_VERTICAL);
-  gtk_widget_set_size_request(GTK_WIDGET(self), 300, -1);
+  gtk_widget_set_size_request(GTK_WIDGET(self), 400, -1);
 
   self->top_bar = response_top_bar_new();
   self->content = response_content_new();

@@ -33,7 +33,7 @@ G_DEFINE_TYPE(RequestView, request_view, GTK_TYPE_BOX)
 static void request_view_init(RequestView *self) {
   gtk_orientable_set_orientation(GTK_ORIENTABLE(self),
                                  GTK_ORIENTATION_VERTICAL);
-  gtk_widget_set_size_request(GTK_WIDGET(self), 300, -1);
+  gtk_widget_set_size_request(GTK_WIDGET(self), 400, -1);
 
   self->top_bar = request_top_bar_new();
   gtk_box_append(GTK_BOX(self), GTK_WIDGET(self->top_bar));

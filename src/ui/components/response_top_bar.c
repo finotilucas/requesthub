@@ -27,6 +27,7 @@
 
 struct _ResponseTopBar {
   GtkBox parent_instance;
+  GtkRevealer *revealer;
 
   GtkLabel *status_value_label;
   GtkLabel *time_label;
@@ -57,13 +58,19 @@ static void response_top_bar_class_init(ResponseTopBarClass *klass) {
 
 static void response_top_bar_init(ResponseTopBar *self) {
   gtk_orientable_set_orientation(GTK_ORIENTABLE(self),
-                                 GTK_ORIENTATION_HORIZONTAL);
+                                 GTK_ORIENTATION_VERTICAL);
 
-  gtk_widget_set_margin_start(GTK_WIDGET(self), 10);
-  gtk_widget_set_margin_end(GTK_WIDGET(self), 10);
-  gtk_widget_set_margin_top(GTK_WIDGET(self), 10);
-  gtk_widget_set_margin_bottom(GTK_WIDGET(self), 10);
-  gtk_box_set_spacing(GTK_BOX(self), 8);
+  self->revealer = GTK_REVEALER(gtk_revealer_new());
+  gtk_revealer_set_transition_type(self->revealer,
+                                   GTK_REVEALER_TRANSITION_TYPE_SLIDE_DOWN);
+  gtk_revealer_set_transition_duration(self->revealer, 250);
+
+  GtkWidget *inner_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+
+  gtk_widget_set_margin_start(inner_box, 10);
+  gtk_widget_set_margin_end(inner_box, 10);
+  gtk_widget_set_margin_top(inner_box, 10);
+  gtk_widget_set_margin_bottom(inner_box, 10);
 
   self->status_value_label = GTK_LABEL(gtk_label_new("---"));
   self->time_label = GTK_LABEL(gtk_label_new("0ms"));
@@ -73,9 +80,13 @@ static void response_top_bar_init(ResponseTopBar *self) {
   gtk_widget_add_css_class(GTK_WIDGET(self->time_label), "badge");
   gtk_widget_add_css_class(GTK_WIDGET(self->size_label), "badge");
 
-  gtk_box_append(GTK_BOX(self), GTK_WIDGET(self->status_value_label));
-  gtk_box_append(GTK_BOX(self), GTK_WIDGET(self->time_label));
-  gtk_box_append(GTK_BOX(self), GTK_WIDGET(self->size_label));
+  gtk_box_append(GTK_BOX(inner_box), GTK_WIDGET(self->status_value_label));
+  gtk_box_append(GTK_BOX(inner_box), GTK_WIDGET(self->time_label));
+  gtk_box_append(GTK_BOX(inner_box), GTK_WIDGET(self->size_label));
+
+  gtk_revealer_set_child(self->revealer, inner_box);
+
+  gtk_box_append(GTK_BOX(self), GTK_WIDGET(self->revealer));
 }
 
 ResponseTopBar *response_top_bar_new(void) {
@@ -84,8 +95,10 @@ ResponseTopBar *response_top_bar_new(void) {
 
 void response_top_bar_update(ResponseTopBar *self, HttpResponse *resp) {
   g_return_if_fail(RESPONSE_IS_TOP_BAR(self));
-  if (!resp)
+  if (!resp) {
+    gtk_revealer_set_reveal_child(self->revealer, FALSE);
     return;
+  }
 
   char buf[128];
   g_snprintf(buf, sizeof(buf), "%ld", resp->http_status);
@@ -100,5 +113,8 @@ void response_top_bar_update(ResponseTopBar *self, HttpResponse *resp) {
   size_t body_len = resp->body ? strlen(resp->body) : 0;
   char *size_str = format_response_size(body_len);
   gtk_label_set_text(self->size_label, size_str);
+
+  gtk_revealer_set_reveal_child(self->revealer, TRUE);
+
   g_free(size_str);
 }

@@ -29,18 +29,36 @@
 
 struct _ResponseContent {
   GtkBox parent_instance;
+  GtkStack *stack;
   GtkSourceView *body_view;
   GtkSourceBuffer *body_buffer;
 };
 
 G_DEFINE_TYPE(ResponseContent, response_content, GTK_TYPE_BOX)
 
+static GtkWidget *create_shortcut_row(const char *action, const char *keys) {
+  GtkWidget *box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 40);
+  gtk_widget_set_margin_bottom(box, 10);
+
+  GtkWidget *action_label = gtk_label_new(action);
+  GtkWidget *keys_label = gtk_label_new(keys);
+
+  gtk_widget_set_hexpand(action_label, TRUE);
+  gtk_widget_set_halign(action_label, GTK_ALIGN_START);
+  gtk_widget_set_halign(keys_label, GTK_ALIGN_END);
+
+  gtk_widget_add_css_class(keys_label, "dim-label");
+
+  gtk_box_append(GTK_BOX(box), action_label);
+  gtk_box_append(GTK_BOX(box), keys_label);
+
+  return box;
+}
+
 static void response_content_finalize(GObject *object) {
   ResponseContent *self = RESPONSE_CONTENT(object);
-
   if (self->body_buffer)
     g_object_unref(self->body_buffer);
-
   G_OBJECT_CLASS(response_content_parent_class)->finalize(object);
 }
 
@@ -52,8 +70,33 @@ static void response_content_init(ResponseContent *self) {
   gtk_orientable_set_orientation(GTK_ORIENTABLE(self),
                                  GTK_ORIENTATION_VERTICAL);
 
-  self->body_view = GTK_SOURCE_VIEW(source_view_new(&self->body_buffer));
+  self->stack = GTK_STACK(gtk_stack_new());
+  gtk_stack_set_transition_type(self->stack,
+                                GTK_STACK_TRANSITION_TYPE_CROSSFADE);
+  gtk_stack_set_transition_duration(self->stack, 200);
+  gtk_widget_set_vexpand(GTK_WIDGET(self->stack), TRUE);
 
+  GtkWidget *empty_center_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+  gtk_widget_set_valign(empty_center_box, GTK_ALIGN_CENTER);
+  gtk_widget_set_halign(empty_center_box, GTK_ALIGN_CENTER);
+
+  GtkWidget *shortcuts_container = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
+  gtk_widget_set_size_request(shortcuts_container, 350, -1);
+
+  gtk_box_append(GTK_BOX(shortcuts_container),
+                 create_shortcut_row("Send Request", "Ctrl + Enter"));
+  gtk_box_append(GTK_BOX(shortcuts_container),
+                 create_shortcut_row("Focus URL", "Ctrl + L"));
+  gtk_box_append(GTK_BOX(shortcuts_container),
+                 create_shortcut_row("Edit Cookies", "Ctrl + K"));
+  gtk_box_append(GTK_BOX(shortcuts_container),
+                 create_shortcut_row("Environment Editor", "Ctrl + E"));
+  gtk_box_append(GTK_BOX(shortcuts_container),
+                 create_shortcut_row("Keyboard Shortcuts", "Ctrl + Shift + /"));
+
+  gtk_box_append(GTK_BOX(empty_center_box), shortcuts_container);
+
+  self->body_view = GTK_SOURCE_VIEW(source_view_new(&self->body_buffer));
   gtk_text_view_set_editable(GTK_TEXT_VIEW(self->body_view), FALSE);
   gtk_text_view_set_monospace(GTK_TEXT_VIEW(self->body_view), TRUE);
 
@@ -62,7 +105,12 @@ static void response_content_init(ResponseContent *self) {
                                 GTK_WIDGET(self->body_view));
   gtk_widget_set_vexpand(scrolled, TRUE);
 
-  gtk_box_append(GTK_BOX(self), scrolled);
+  gtk_stack_add_named(self->stack, empty_center_box, "empty");
+  gtk_stack_add_named(self->stack, scrolled, "data");
+
+  gtk_box_append(GTK_BOX(self), GTK_WIDGET(self->stack));
+
+  gtk_stack_set_visible_child_name(self->stack, "empty");
 }
 
 ResponseContent *response_content_new(void) {
@@ -72,16 +120,19 @@ ResponseContent *response_content_new(void) {
 void response_content_clear(ResponseContent *self) {
   g_return_if_fail(RESPONSE_IS_CONTENT(self));
   gtk_text_buffer_set_text(GTK_TEXT_BUFFER(self->body_buffer), "", -1);
+  gtk_stack_set_visible_child_name(self->stack, "empty");
 }
 
 void response_content_set_response(ResponseContent *self, HttpResponse *resp) {
   g_return_if_fail(RESPONSE_IS_CONTENT(self));
-  if (!resp)
+
+  if (!resp) {
+    gtk_stack_set_visible_child_name(self->stack, "empty");
     return;
+  }
 
   if (resp->body && g_utf8_validate(resp->body, -1, NULL)) {
     cJSON *json = cJSON_Parse(resp->body);
-
     if (json) {
       json_buffer_set_from_cjson(GTK_TEXT_BUFFER(self->body_buffer), json);
       cJSON_Delete(json);
@@ -93,4 +144,6 @@ void response_content_set_response(ResponseContent *self, HttpResponse *resp) {
     gtk_text_buffer_set_text(GTK_TEXT_BUFFER(self->body_buffer),
                              "[Binary or Invalid Content]", -1);
   }
+
+  gtk_stack_set_visible_child_name(self->stack, "data");
 }
