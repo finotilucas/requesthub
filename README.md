@@ -16,11 +16,13 @@ RequestHub leverages advanced connection pooling and HTTP/2 to achieve remarkabl
 - **50% faster** than Postman for consecutive requests
 - **Zero overhead** - no JavaScript runtime, no Electron bloat
 
+_Tests performed on the same network conditions_
+
 ## Features
 
 ### Core Functionality
 
-- **High-performance HTTP client** with connection pooling
+- **High-performance HTTP client**
 - **Keep-alive connections** for lightning-fast consecutive requests
 - **HTTP/2 support** with multiplexing
 - **SSL/TLS verification** enabled by default
@@ -30,55 +32,6 @@ RequestHub leverages advanced connection pooling and HTTP/2 to achieve remarkabl
 - **Query parameter** encoding
 - **Configurable timeouts** and redirects
 - **Response metadata** (status, headers, timing)
-
-## Getting Started
-
-### Prerequisites
-
-- **C Compiler**: GCC or Clang with C11 support
-- **libcurl**: Version 7.64.0 or higher (with HTTP/2 support)
-- **pthread**: For thread-safe pool operations
-- **GTK 4**: For the UI
-- **Make**: For building
-
-#### Installing Dependencies
-
-**Ubuntu/Debian:**
-
-```sh
-sudo apt-get install build-essential libcurl4-openssl-dev libgtk-4-dev
-```
-
-**Fedora/RHEL:**
-
-```sh
-sudo dnf install gcc libcurl-devel 	gtk4-devel
-```
-
-### Building
-
-1. Clone the repository:
-
-```sh
-git clone https://github.com/FinotiLucas/requesthub-c
-cd requesthub-c
-```
-
-2. Build the application:
-
-```sh
-make release
-```
-
-### Running
-
-Run the application:
-
-```sh
-make run
-```
-
-_Tests performed on the same network conditions_
 
 ## Known Limitations
 
@@ -121,17 +74,7 @@ Whether it's bug fixes, new features, or documentation improvements.
 - Ensure no memory leaks (verify with `valgrind`)
 - Run static analysis before submitting
 
-### Testing
-
-```sh
-# Run with Valgrind to check for memory leaks
-valgrind --leak-check=full --show-leak-kinds=all ./build/release/requesthub
-
-# Static analysis
-cppcheck --enable=all src/
-```
-
-## 📄 License
+## License
 
 RequestHub is licensed under the **GNU General Public License v2.0 or later**.
 
@@ -158,11 +101,6 @@ GNU General Public License for more details.
 
 ## Contact
 
-**Lucas Finoti**
-
-- Email: lucas.finoti@protonmail.com
-- GitHub: [@FinotiLucas](https://github.com/FinotiLucas)
-
 ## Support
 
 - [Report bugs](https://github.com/FinotiLucas/requesthub-c/issues)
@@ -172,9 +110,9 @@ GNU General Public License for more details.
 ---
 
 <p align="center">
-  Made with ❤️ and C by <a href="https://github.com/FinotiLucas">Lucas Finoti</a>
+  Made by <a href="https://github.com/FinotiLucas">Lucas Finoti</a>
 </p>
 
 <p align="center">
-  <i>If you find RequestHub useful, please consider giving it a ⭐ on GitHub!</i>
+  If you find RequestHub useful, please consider giving it a ⭐ on GitHub!
 </p>
