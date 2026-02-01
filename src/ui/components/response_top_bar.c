@@ -22,7 +22,7 @@
  ******************************************************************************/
 
 #include "response_top_bar.h"
-#include "../../utils/format.h"
+#include "../../utils/format_response.h"
 #include <gtk/gtk.h>
 
 struct _ResponseTopBar {

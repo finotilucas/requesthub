@@ -21,8 +21,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#ifndef FORMAT_H
-#define FORMAT_H
+#ifndef FORMAT_RESPONSE_H
+#define FORMAT_RESPONSE_H
 
 #include <glib.h>
 
