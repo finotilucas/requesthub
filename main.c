@@ -2,23 +2,30 @@
 #include "src/http/http_pool.h"
 #include "src/http/request.h"
 #include "src/ui/components/request_top_bar.h"
-#include "src/ui/components/response_view.h"
+#include "src/ui/components/response_content.h"
+#include "src/ui/components/response_top_bar.h"
+#include "src/ui/components/response_content.h"
 #include "src/utils/css_loader.h"
 
 #include <curl/curl.h>
 #include <gtk/gtk.h>
 
+typedef struct {
+  ResponseTopBar *top_bar;
+  ResponseContent *view;
+} ResponseContext;
+
 static void on_send_clicked(RequestTopBar *bar, gpointer user_data) {
-  ResponseView *view = user_data;
+  ResponseContext *ctx = (ResponseContext *)user_data;
 
   const char *url = request_top_bar_get_url(bar);
   HttpMethods method = request_top_bar_get_method(bar);
 
   HttpRequest *req = http_request_new(url, method);
-
   HttpResponse *resp = http_request_perform(req);
 
-  response_view_set_response(view, resp);
+  response_top_bar_update(ctx->top_bar, resp);
+  response_content_set_response(ctx->view, resp);
 
   http_response_free(resp);
   http_request_free(req);
@@ -30,20 +37,35 @@ static void on_activate(GtkApplication *app) {
 
   GtkWidget *window = gtk_application_window_new(app);
   gtk_window_set_title(GTK_WINDOW(window), "RequestHub");
-  gtk_window_set_default_size(GTK_WINDOW(window), 800, 600);
+  gtk_window_set_default_size(GTK_WINDOW(window), 1000, 700);
 
-  RequestTopBar *top_bar = request_top_bar_new();
-  ResponseView *response_view = response_view_new();
+  GtkWidget *paned = gtk_paned_new(GTK_ORIENTATION_HORIZONTAL);
 
-  GtkWidget *main_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+  RequestTopBar *request_bar = request_top_bar_new();
+  GtkWidget *left_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+  gtk_box_append(GTK_BOX(left_box), GTK_WIDGET(request_bar));
 
-  gtk_box_append(GTK_BOX(main_box), GTK_WIDGET(top_bar));
-  gtk_box_append(GTK_BOX(main_box), GTK_WIDGET(response_view));
+  ResponseTopBar *res_top_bar = response_top_bar_new();
+  ResponseContent *res_view = response_content_new();
 
-  g_signal_connect(top_bar, "send-clicked", G_CALLBACK(on_send_clicked),
-                   response_view);
+  GtkWidget *right_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+  gtk_box_append(GTK_BOX(right_box), GTK_WIDGET(res_top_bar));
+  gtk_box_append(GTK_BOX(right_box), GTK_WIDGET(res_view));
 
-  gtk_window_set_child(GTK_WINDOW(window), main_box);
+  gtk_paned_set_start_child(GTK_PANED(paned), left_box);
+  gtk_paned_set_end_child(GTK_PANED(paned), right_box);
+  gtk_paned_set_position(GTK_PANED(paned), 400);
+
+  ResponseContext *ctx = g_new0(ResponseContext, 1);
+  ctx->top_bar = res_top_bar;
+  ctx->view = res_view;
+
+  g_signal_connect(request_bar, "send-clicked", G_CALLBACK(on_send_clicked),
+                   ctx);
+
+  g_object_set_data_full(G_OBJECT(window), "app-ctx", ctx, g_free);
+
+  gtk_window_set_child(GTK_WINDOW(window), paned);
   gtk_window_present(GTK_WINDOW(window));
 }
 
