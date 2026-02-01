@@ -2,6 +2,10 @@
     opacity: 0.4;
 }
 
+.suggested-action {
+    min-width: 50px;
+}
+
 .badge {
     padding: 4px;
     border-radius: 4px;

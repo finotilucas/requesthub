@@ -23,21 +23,23 @@
 
 #include "request_top_bar.h"
 #include "../../http/methods.h"
+#include "glibconfig.h"
 
 struct _RequestTopBar {
   GtkBox parent_instance;
   GtkDropDown *method_dropdown;
   GtkEntry *url_entry;
   GtkButton *send_button;
+  GtkWidget *button_label;
+  GtkWidget *button_spinner;
 };
 
 G_DEFINE_TYPE(RequestTopBar, request_top_bar, GTK_TYPE_BOX)
 
 enum { SEND_CLICKED, N_SIGNALS };
-
 static guint signals[N_SIGNALS];
 
-static void on_send_clicked(GtkButton *btn, gpointer user_data) {
+static void on_send_clicked_internal(GtkButton *btn, gpointer user_data) {
   (void)btn;
   RequestTopBar *self = REQUEST_TOP_BAR(user_data);
   g_signal_emit(self, signals[SEND_CLICKED], 0);
@@ -55,7 +57,6 @@ static void request_top_bar_init(RequestTopBar *self) {
 
   const char **methods = http_methods_get_list();
   GtkStringList *list = gtk_string_list_new(methods);
-
   self->method_dropdown =
       GTK_DROP_DOWN(gtk_drop_down_new(G_LIST_MODEL(list), NULL));
   g_object_unref(list);
@@ -63,14 +64,30 @@ static void request_top_bar_init(RequestTopBar *self) {
   self->url_entry = GTK_ENTRY(gtk_entry_new());
   gtk_entry_set_placeholder_text(self->url_entry, "https://api.example.com");
   gtk_widget_set_hexpand(GTK_WIDGET(self->url_entry), TRUE);
-
   gtk_widget_add_css_class(GTK_WIDGET(self->url_entry), "input");
 
-  self->send_button = GTK_BUTTON(gtk_button_new_with_label("Enviar"));
+  self->send_button = GTK_BUTTON(gtk_button_new());
   gtk_widget_add_css_class(GTK_WIDGET(self->send_button), "suggested-action");
 
-  g_signal_connect(self->send_button, "clicked", G_CALLBACK(on_send_clicked),
-                   self);
+  GtkWidget *btn_content = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+
+  gtk_widget_set_halign(btn_content, GTK_ALIGN_CENTER);
+  gtk_widget_set_valign(btn_content, GTK_ALIGN_CENTER);
+  gtk_widget_set_hexpand(btn_content, FALSE);
+
+  self->button_label = gtk_label_new("Send");
+  gtk_label_set_xalign(GTK_LABEL(self->button_label), 0.5);
+
+  self->button_spinner = gtk_spinner_new();
+  gtk_widget_set_visible(self->button_spinner, FALSE);
+
+  gtk_box_append(GTK_BOX(btn_content), self->button_label);
+  gtk_box_append(GTK_BOX(btn_content), self->button_spinner);
+
+  gtk_button_set_child(self->send_button, btn_content);
+
+  g_signal_connect(self->send_button, "clicked",
+                   G_CALLBACK(on_send_clicked_internal), self);
 
   gtk_box_append(GTK_BOX(self), GTK_WIDGET(self->method_dropdown));
   gtk_box_append(GTK_BOX(self), GTK_WIDGET(self->url_entry));
@@ -81,6 +98,20 @@ static void request_top_bar_class_init(RequestTopBarClass *klass) {
   signals[SEND_CLICKED] =
       g_signal_new("send-clicked", G_TYPE_FROM_CLASS(klass), G_SIGNAL_RUN_FIRST,
                    0, NULL, NULL, NULL, G_TYPE_NONE, 0);
+}
+
+void request_top_bar_set_loading(RequestTopBar *self, gboolean is_loading) {
+  if (is_loading) {
+    gtk_spinner_start(GTK_SPINNER(self->button_spinner));
+    gtk_widget_set_visible(self->button_label, FALSE);
+    gtk_widget_set_visible(self->button_spinner, TRUE);
+    gtk_widget_set_sensitive(GTK_WIDGET(self->send_button), FALSE);
+  } else {
+    gtk_spinner_stop(GTK_SPINNER(self->button_spinner));
+    gtk_widget_set_visible(self->button_label, TRUE);
+    gtk_widget_set_visible(self->button_spinner, FALSE);
+    gtk_widget_set_sensitive(GTK_WIDGET(self->send_button), TRUE);
+  }
 }
 
 RequestTopBar *request_top_bar_new(void) {

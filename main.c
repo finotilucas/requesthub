@@ -36,21 +36,61 @@ typedef struct {
   RequestView *request_view;
 } AppContext;
 
-static void on_send_clicked(RequestTopBar *bar, gpointer user_data) {
-  AppContext *ctx = (AppContext *)user_data;
-  if (!ctx)
-    return;
+typedef struct {
+  char *url;
+  HttpMethods method;
+  RequestTopBar *bar;
+  AppContext *ctx;
+} AsyncRequestData;
 
-  const char *url = request_top_bar_get_url(bar);
-  HttpMethods method = request_top_bar_get_method(bar);
+static void async_request_data_free(AsyncRequestData *data) {
+  g_free(data->url);
+  g_free(data);
+}
 
-  HttpRequest *req = http_request_new(url, method);
+static void request_worker_thread(GTask *task, gpointer source_obj,
+                                  gpointer task_data,
+                                  GCancellable *cancellable) {
+
+  (void)cancellable;
+  (void)source_obj;
+  AsyncRequestData *rd = (AsyncRequestData *)task_data;
+
+  HttpRequest *req = http_request_new(rd->url, rd->method);
   HttpResponse *resp = http_request_perform(req);
 
-  response_view_update(ctx->response_view, resp);
-
-  http_response_free(resp);
+  g_task_return_pointer(task, resp, (GDestroyNotify)http_response_free);
   http_request_free(req);
+}
+
+static void on_request_finished(GObject *source, GAsyncResult *res,
+                                gpointer user_data) {
+
+  (void)source;
+  AsyncRequestData *rd = (AsyncRequestData *)user_data;
+  HttpResponse *resp = g_task_propagate_pointer(G_TASK(res), NULL);
+
+  response_view_update(rd->ctx->response_view, resp);
+  request_top_bar_set_loading(rd->bar, FALSE);
+
+  async_request_data_free(rd);
+}
+
+static void on_send_clicked(RequestTopBar *bar, gpointer user_data) {
+  AppContext *ctx = (AppContext *)user_data;
+
+  request_top_bar_set_loading(bar, TRUE);
+
+  AsyncRequestData *rd = g_new0(AsyncRequestData, 1);
+  rd->url = g_strdup(request_top_bar_get_url(bar));
+  rd->method = request_top_bar_get_method(bar);
+  rd->bar = bar;
+  rd->ctx = ctx;
+
+  GTask *task = g_task_new(NULL, NULL, on_request_finished, rd);
+  g_task_set_task_data(task, rd, NULL);
+  g_task_run_in_thread(task, request_worker_thread);
+  g_object_unref(task);
 }
 
 static void on_shortcut_send_wrapper(GSimpleAction *action, GVariant *parameter,
