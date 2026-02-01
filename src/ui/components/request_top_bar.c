@@ -64,6 +64,8 @@ static void request_top_bar_init(RequestTopBar *self) {
   gtk_entry_set_placeholder_text(self->url_entry, "https://api.example.com");
   gtk_widget_set_hexpand(GTK_WIDGET(self->url_entry), TRUE);
 
+  gtk_widget_add_css_class(GTK_WIDGET(self->url_entry), "input");
+
   self->send_button = GTK_BUTTON(gtk_button_new_with_label("Enviar"));
   gtk_widget_add_css_class(GTK_WIDGET(self->send_button), "suggested-action");
 
