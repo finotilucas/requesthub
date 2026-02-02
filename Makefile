@@ -1,59 +1,88 @@
-CC             := cc
+UNAME_S := $(shell uname -s)
 
-GTK_CFLAGS     := $(shell pkg-config --cflags gtk4)
-GTK_LIBS       := $(shell pkg-config --libs gtk4)
+ifeq ($(findstring MINGW,$(UNAME_S)),MINGW)
+    WINDOWS    := 1
+    CC         := gcc
+    EXE        := .exe
+    SANITIZE   :=
+else
+    WINDOWS    := 0
+    CC         := cc
+    EXE        :=
+    SANITIZE   := -fsanitize=address
+endif
 
-CJSON_CFLAGS := -I/usr/include/cjson
-CJSON_LIBS   := -lcjson
+GTK_CFLAGS        := $(shell pkg-config --cflags gtk4)
+GTK_LIBS          := $(shell pkg-config --libs gtk4)
 
 SOURCEVIEW_CFLAGS := $(shell pkg-config --cflags gtksourceview-5)
 SOURCEVIEW_LIBS   := $(shell pkg-config --libs gtksourceview-5)
 
-COMMON_CFLAGS := -Wall -Wextra -Werror -Iinclude $(GTK_CFLAGS) $(CJSON_CFLAGS) $(SOURCEVIEW_CFLAGS)
-LDFLAGS       := -fsanitize=address $(GTK_LIBS) -lcurl $(CJSON_LIBS) $(SOURCEVIEW_LIBS)
+ifeq ($(WINDOWS),1)
+    CJSON_CFLAGS := $(shell pkg-config --cflags libcjson)
+    CJSON_LIBS   := $(shell pkg-config --libs libcjson)
+else
+    CJSON_CFLAGS := -I/usr/include/cjson
+    CJSON_LIBS   := -lcjson
+endif
 
-CFLAGS_DEBUG   := -g -fsanitize=address $(COMMON_CFLAGS)
+COMMON_CFLAGS := -Wall -Wextra -Werror -Iinclude \
+                 $(GTK_CFLAGS) \
+                 $(SOURCEVIEW_CFLAGS) \
+                 $(CJSON_CFLAGS)
+
+CFLAGS_DEBUG   := -g $(SANITIZE) $(COMMON_CFLAGS)
 CFLAGS_RELEASE := -O3 -DNDEBUG $(COMMON_CFLAGS)
 
-SRC_DIR        := src
-OBJ_DIR        := obj
-BUILD_DIR      := build
+LDFLAGS_COMMON := $(GTK_LIBS) $(SOURCEVIEW_LIBS) $(CJSON_LIBS) -lcurl
+LDFLAGS_DEBUG  := $(SANITIZE) $(LDFLAGS_COMMON)
+LDFLAGS_RELEASE := $(LDFLAGS_COMMON)
 
-SOURCES        := $(shell find $(SRC_DIR) -name '*.c') main.c
-OBJECTS        := $(SOURCES:%.c=$(OBJ_DIR)/%.o)
+SRC_DIR         := src
+OBJ_DIR         := obj
+BUILD_DIR       := build
 
-TARGET_DEBUG   := $(BUILD_DIR)/main
-TARGET_RELEASE := $(BUILD_DIR)/release/main
+SOURCES         := $(shell find $(SRC_DIR) -name '*.c') main.c
 
-CFLAGS := $(CFLAGS_DEBUG)
+DEBUG_OBJ_DIR   := $(OBJ_DIR)/debug
+RELEASE_OBJ_DIR := $(OBJ_DIR)/release
+
+DEBUG_OBJECTS   := $(SOURCES:%.c=$(DEBUG_OBJ_DIR)/%.o)
+RELEASE_OBJECTS := $(SOURCES:%.c=$(RELEASE_OBJ_DIR)/%.o)
+
+TARGET_DEBUG    := $(BUILD_DIR)/main$(EXE)
+TARGET_RELEASE  := $(BUILD_DIR)/release/main$(EXE)
 
 all: debug
 
-debug: CFLAGS := $(CFLAGS_DEBUG)
 debug: $(TARGET_DEBUG)
 
-release: CFLAGS := $(CFLAGS_RELEASE)
 release: $(TARGET_RELEASE)
 
-$(TARGET_DEBUG): $(OBJECTS)
+$(TARGET_DEBUG): $(DEBUG_OBJECTS)
 	@mkdir -p $(BUILD_DIR)
-	$(CC) $(OBJECTS) -o $@ $(LDFLAGS)
+	$(CC) $^ -o $@ $(LDFLAGS_DEBUG)
 
-$(TARGET_RELEASE): $(OBJECTS)
+$(TARGET_RELEASE): $(RELEASE_OBJECTS)
 	@mkdir -p $(BUILD_DIR)/release
-	$(CC) $(OBJECTS) -o $@ $(LDFLAGS)
+	$(CC) $^ -o $@ $(LDFLAGS_RELEASE)
 
-$(OBJ_DIR)/%.o: %.c
+$(DEBUG_OBJ_DIR)/%.o: %.c
 	@mkdir -p $(dir $@)
-	@echo "Compiling: $<"
-	$(CC) $(CFLAGS) -c $< -o $@
+	@echo "Compiling (debug):   $<"
+	$(CC) $(CFLAGS_DEBUG) -c $< -o $@
 
-.PHONY: all debug release clean run run-release rebuild valgrind bear
+$(RELEASE_OBJ_DIR)/%.o: %.c
+	@mkdir -p $(dir $@)
+	@echo "Compiling (release): $<"
+	$(CC) $(CFLAGS_RELEASE) -c $< -o $@
+
+.PHONY: all debug release clean run run-release rebuild
 
 clean:
 	rm -rf $(OBJ_DIR) $(BUILD_DIR)
 
-run: all
+run: debug
 	./$(TARGET_DEBUG)
 
 run-release: release
@@ -63,8 +92,12 @@ rebuild:
 	$(MAKE) clean
 	$(MAKE) release
 
-valgrind: all
+ifneq ($(WINDOWS),1)
+.PHONY: valgrind bear
+
+valgrind: debug
 	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./$(TARGET_DEBUG)
 
 bear:
 	bear -- $(MAKE) clean all
+endif

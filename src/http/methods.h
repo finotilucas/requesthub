@@ -25,13 +25,13 @@
 #define METHODS_H
 
 typedef enum {
-  GET,
-  POST,
-  PUT,
-  DELETE,
-  PATCH,
-  HEAD,
-  OPTIONS,
+  HTTP_GET,
+  HTTP_POST,
+  HTTP_PUT,
+  HTTP_DELETE,
+  HTTP_PATCH,
+  HTTP_HEAD,
+  HTTP_OPTIONS,
 } HttpMethods;
 
 const char *method_to_string(HttpMethods method);

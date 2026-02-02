@@ -29,7 +29,7 @@ static const char *methods_strings[] = {"GET",   "POST", "PUT",     "DELETE",
                                         "PATCH", "HEAD", "OPTIONS", NULL};
 
 const char *method_to_string(HttpMethods method) {
-  if (method >= 0 && method <= OPTIONS) {
+  if (method >= 0 && method <= HTTP_OPTIONS) {
     return methods_strings[method];
   }
   return "UNKNOWN";

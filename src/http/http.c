@@ -38,9 +38,9 @@ static void configure_method(CURL *curl, HttpRequest *request) {
   curl_easy_setopt(curl, CURLOPT_FORBID_REUSE, 0L);
 
   switch (request->method) {
-  case GET:
+  case HTTP_GET:
     break;
-  case POST:
+  case HTTP_POST:
     curl_easy_setopt(curl, CURLOPT_POST, 1L);
     if (request->body) {
       curl_easy_setopt(curl, CURLOPT_POSTFIELDS, request->body);
@@ -49,7 +49,7 @@ static void configure_method(CURL *curl, HttpRequest *request) {
       curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, 0L);
     }
     break;
-  case PUT:
+  case HTTP_PUT:
     curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
     if (request->body) {
       curl_easy_setopt(curl, CURLOPT_POSTFIELDS, request->body);
@@ -58,10 +58,10 @@ static void configure_method(CURL *curl, HttpRequest *request) {
       curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, 0L);
     }
     break;
-  case DELETE:
+  case HTTP_DELETE:
     curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
     break;
-  case PATCH:
+  case HTTP_PATCH:
     curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PATCH");
     if (request->body) {
       curl_easy_setopt(curl, CURLOPT_POSTFIELDS, request->body);
@@ -70,10 +70,10 @@ static void configure_method(CURL *curl, HttpRequest *request) {
       curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, 0L);
     }
     break;
-  case HEAD:
+  case HTTP_HEAD:
     curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
     break;
-  case OPTIONS:
+  case HTTP_OPTIONS:
     curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "OPTIONS");
     break;
   }
