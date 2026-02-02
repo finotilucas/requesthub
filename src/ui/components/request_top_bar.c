@@ -23,7 +23,6 @@
 
 #include "request_top_bar.h"
 #include "../../http/methods.h"
-#include "glibconfig.h"
 
 struct _RequestTopBar {
   GtkBox parent_instance;
