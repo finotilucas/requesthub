@@ -48,10 +48,15 @@ void http_request_free(HttpRequest *request);
 
 HttpRequest *http_request_add_header(HttpRequest *request, const char *header);
 
+HttpRequest *http_request_remove_header(HttpRequest *request, const char *key);
+
 HttpRequest *http_request_set_body(HttpRequest *request, const char *body);
 
 HttpRequest *http_request_add_query_param(HttpRequest *request, const char *key,
                                           const char *value);
+
+HttpRequest *http_request_remove_query_param(HttpRequest *request,
+                                             const char *key);
 
 HttpRequest *http_request_set_timeout(HttpRequest *request, long seconds);
 
