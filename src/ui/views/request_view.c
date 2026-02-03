@@ -22,10 +22,13 @@
  ******************************************************************************/
 
 #include "request_view.h"
+#include "../components/request_tabs.h"
+#include "params_view.h"
 
 struct _RequestView {
   GtkBox parent_instance;
   RequestTopBar *top_bar;
+  RequestTabs *tabs_component;
 };
 
 G_DEFINE_TYPE(RequestView, request_view, GTK_TYPE_BOX)
@@ -33,10 +36,40 @@ G_DEFINE_TYPE(RequestView, request_view, GTK_TYPE_BOX)
 static void request_view_init(RequestView *self) {
   gtk_orientable_set_orientation(GTK_ORIENTABLE(self),
                                  GTK_ORIENTATION_VERTICAL);
-  gtk_widget_set_size_request(GTK_WIDGET(self), 400, -1);
 
   self->top_bar = request_top_bar_new();
-  gtk_box_append(GTK_BOX(self), GTK_WIDGET(self->top_bar));
+  if (self->top_bar) {
+    gtk_box_append(GTK_BOX(self), GTK_WIDGET(self->top_bar));
+  }
+
+  self->tabs_component = request_tabs_new();
+
+  if (self->tabs_component != NULL) {
+    gtk_box_append(GTK_BOX(self), GTK_WIDGET(self->tabs_component));
+
+    ParamsView *params = params_view_new();
+    if (params != NULL) {
+      request_tabs_add_view(self->tabs_component, GTK_WIDGET(params), "Params");
+    }
+
+    ParamsView *body = params_view_new();
+    if (body != NULL) {
+      request_tabs_add_view(self->tabs_component, GTK_WIDGET(body), "Body");
+    }
+
+    ParamsView *auth = params_view_new();
+    if (auth != NULL) {
+      request_tabs_add_view(self->tabs_component, GTK_WIDGET(auth), "Auth");
+    }
+
+    ParamsView *headers = params_view_new();
+    if (headers != NULL) {
+      request_tabs_add_view(self->tabs_component, GTK_WIDGET(headers),
+                            "Headers");
+    }
+  } else {
+    g_warning("Can not load RequestView");
+  }
 }
 
 static void request_view_class_init(RequestViewClass *klass) { (void)klass; }
@@ -46,5 +79,7 @@ RequestView *request_view_new(void) {
 }
 
 RequestTopBar *request_view_get_top_bar(RequestView *self) {
+  g_return_val_if_fail(REQUEST_IS_VIEW(self), NULL);
+
   return self->top_bar;
 }

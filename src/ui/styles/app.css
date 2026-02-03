@@ -17,13 +17,12 @@
 
 .badge-success {
     font-weight: bold;
-    background-color: #90a955;
+    background-color: #75ba2c;
 }
 
 .badge-warning {
     font-weight: bold;
-    background-color: #f4e285;
-    color: black;
+    background-color: #ec872a;
 }
 
 .badge-error {
