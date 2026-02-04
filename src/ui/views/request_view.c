@@ -29,6 +29,7 @@ struct _RequestView {
   GtkBox parent_instance;
   RequestTopBar *top_bar;
   RequestTabs *tabs_component;
+  ParamsView *params_page;
 };
 
 G_DEFINE_TYPE(RequestView, request_view, GTK_TYPE_BOX)
@@ -82,4 +83,9 @@ RequestTopBar *request_view_get_top_bar(RequestView *self) {
   g_return_val_if_fail(REQUEST_IS_VIEW(self), NULL);
 
   return self->top_bar;
+}
+
+ParamsView *request_view_get_params_view(RequestView *self) {
+  g_return_val_if_fail(REQUEST_IS_VIEW(self), NULL);
+  return self->params_page;
 }

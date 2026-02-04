@@ -24,6 +24,7 @@
 #include "src/http/http.h"
 #include "src/http/http_pool.h"
 #include "src/http/request.h"
+#include "src/ui/views/params_view.h"
 #include "src/ui/views/request_view.h"
 #include "src/ui/views/response_view.h"
 #include "src/utils/css_loader.h"
@@ -37,35 +38,29 @@ typedef struct {
 } AppContext;
 
 typedef struct {
-  char *url;
-  HttpMethods method;
+  HttpRequest *request;
   RequestTopBar *bar;
   AppContext *ctx;
 } AsyncRequestData;
 
-static void async_request_data_free(AsyncRequestData *data) {
-  g_free(data->url);
-  g_free(data);
-}
+static void async_request_data_free(AsyncRequestData *data) { g_free(data); }
 
 static void request_worker_thread(GTask *task, gpointer source_obj,
                                   gpointer task_data,
                                   GCancellable *cancellable) {
-
   (void)cancellable;
   (void)source_obj;
   AsyncRequestData *rd = (AsyncRequestData *)task_data;
 
-  HttpRequest *req = http_request_new(rd->url, rd->method);
-  HttpResponse *resp = http_request_perform(req);
+  HttpResponse *resp = http_request_perform(rd->request);
 
   g_task_return_pointer(task, resp, (GDestroyNotify)http_response_free);
-  http_request_free(req);
+
+  http_request_free(rd->request);
 }
 
 static void on_request_finished(GObject *source, GAsyncResult *res,
                                 gpointer user_data) {
-
   (void)source;
   AsyncRequestData *rd = (AsyncRequestData *)user_data;
   HttpResponse *resp = g_task_propagate_pointer(G_TASK(res), NULL);
@@ -79,11 +74,20 @@ static void on_request_finished(GObject *source, GAsyncResult *res,
 static void on_send_clicked(RequestTopBar *bar, gpointer user_data) {
   AppContext *ctx = (AppContext *)user_data;
 
+  const char *url = request_top_bar_get_url(bar);
+  HttpMethods method = request_top_bar_get_method(bar);
+
+  HttpRequest *req = http_request_new(url, method);
+
+  ParamsView *pv = request_view_get_params_view(ctx->request_view);
+  if (pv && req) {
+    params_view_apply_to_request(pv, req);
+  }
+
   request_top_bar_set_loading(bar, TRUE);
 
   AsyncRequestData *rd = g_new0(AsyncRequestData, 1);
-  rd->url = g_strdup(request_top_bar_get_url(bar));
-  rd->method = request_top_bar_get_method(bar);
+  rd->request = req;
   rd->bar = bar;
   rd->ctx = ctx;
 

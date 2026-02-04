@@ -24,6 +24,7 @@
 #pragma once
 
 #include "../components/request_top_bar.h"
+#include "params_view.h"
 #include <gtk/gtk.h>
 
 #define REQUEST_TYPE_VIEW (request_view_get_type())
@@ -31,3 +32,4 @@ G_DECLARE_FINAL_TYPE(RequestView, request_view, REQUEST, VIEW, GtkBox)
 
 RequestView *request_view_new(void);
 RequestTopBar *request_view_get_top_bar(RequestView *self);
+ParamsView *request_view_get_params_view(RequestView *self);
