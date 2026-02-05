@@ -69,7 +69,6 @@ static void on_remove_clicked(GtkButton *btn, gpointer user_data) {
 }
 
 static void add_param_row(ParamsView *self, const char *key, const char *val) {
-
   GtkWidget *hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
 
   gtk_widget_set_margin_bottom(hbox, 6);
@@ -109,7 +108,10 @@ static void add_param_row(ParamsView *self, const char *key, const char *val) {
   g_signal_connect(del_btn, "clicked", G_CALLBACK(on_remove_clicked), hbox);
   g_signal_connect(key_entry, "changed", G_CALLBACK(on_key_changed), row_data);
 
-  gtk_list_box_append(GTK_LIST_BOX(self->list_box), hbox);
+  gtk_widget_add_css_class(hbox, "query-row");
+
+  gtk_list_box_prepend(GTK_LIST_BOX(self->list_box), hbox);
+
   validate_row_state(row_data);
 }
 
@@ -162,7 +164,6 @@ static void params_view_init(ParamsView *self) {
 
   GtkWidget *scrolled = gtk_scrolled_window_new();
   gtk_scrolled_window_set_has_frame(GTK_SCROLLED_WINDOW(scrolled), FALSE);
-
   gtk_widget_set_vexpand(scrolled, TRUE);
   gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled),
                                  GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
@@ -173,6 +174,7 @@ static void params_view_init(ParamsView *self) {
   gtk_list_box_set_show_separators(GTK_LIST_BOX(self->list_box), FALSE);
 
   gtk_widget_add_css_class(self->list_box, "background");
+  gtk_widget_add_css_class(self->list_box, "params-list");
 
   gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(scrolled), self->list_box);
   gtk_box_append(GTK_BOX(self), scrolled);
