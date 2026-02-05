@@ -29,7 +29,7 @@ struct _RequestView {
   GtkBox parent_instance;
   RequestTopBar *top_bar;
   RequestTabs *tabs_component;
-  ParamsView *params_page;
+  ParamsView *params_view;
 };
 
 G_DEFINE_TYPE(RequestView, request_view, GTK_TYPE_BOX)
@@ -44,13 +44,13 @@ static void request_view_init(RequestView *self) {
   }
 
   self->tabs_component = request_tabs_new();
-
   if (self->tabs_component != NULL) {
     gtk_box_append(GTK_BOX(self), GTK_WIDGET(self->tabs_component));
 
     ParamsView *params = params_view_new();
     if (params != NULL) {
       request_tabs_add_view(self->tabs_component, GTK_WIDGET(params), "Params");
+      self->params_view = params;
     }
 
     ParamsView *body = params_view_new();
@@ -87,5 +87,5 @@ RequestTopBar *request_view_get_top_bar(RequestView *self) {
 
 ParamsView *request_view_get_params_view(RequestView *self) {
   g_return_val_if_fail(REQUEST_IS_VIEW(self), NULL);
-  return self->params_page;
+  return self->params_view;
 }
