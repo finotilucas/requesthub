@@ -21,19 +21,41 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#pragma once
+#ifndef BODY_VIEW_H
+#define BODY_VIEW_H
 
-#include "../components/request_top_bar.h"
-#include "body_view.h"
-#include "headers_view.h"
-#include "params_view.h"
+#include "../../http/request.h"
 #include <gtk/gtk.h>
+#include <gtksourceview/gtksource.h>
 
-#define REQUEST_TYPE_VIEW (request_view_get_type())
-G_DECLARE_FINAL_TYPE(RequestView, request_view, REQUEST, VIEW, GtkBox)
+G_BEGIN_DECLS
 
-RequestView *request_view_new(void);
-RequestTopBar *request_view_get_top_bar(RequestView *self);
-ParamsView *request_view_get_params_view(RequestView *self);
-HeadersView *request_view_get_headers_view(RequestView *self);
-BodyView *request_view_get_body_view(RequestView *self);
+#define TYPE_BODY_VIEW (body_view_get_type())
+G_DECLARE_FINAL_TYPE(BodyView, body_view, BODY, VIEW, GtkBox)
+
+typedef enum {
+  BODY_TYPE_JSON = 0,
+  BODY_TYPE_XML = 1,
+  BODY_TYPE_YAML = 2,
+  BODY_TYPE_TEXT = 3
+} BodyContentType;
+
+BodyView *body_view_new(void);
+
+void body_view_apply_to_request(BodyView *self, HttpRequest *request);
+
+void body_view_clear(BodyView *self);
+
+void body_view_set_content_type(BodyView *self, BodyContentType type);
+
+BodyContentType body_view_get_content_type(BodyView *self);
+
+void body_view_set_content(BodyView *self, const char *content);
+
+char *body_view_get_content(BodyView *self);
+
+gboolean body_view_is_valid(BodyView *self);
+
+G_END_DECLS
+
+#endif

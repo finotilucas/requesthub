@@ -23,6 +23,7 @@
 
 #include "request_view.h"
 #include "../components/request_tabs.h"
+#include "body_view.h"
 #include "headers_view.h"
 #include "params_view.h"
 
@@ -32,6 +33,7 @@ struct _RequestView {
   RequestTabs *tabs_component;
   ParamsView *params_view;
   HeadersView *headers_view;
+  BodyView *body_view;
 };
 
 G_DEFINE_TYPE(RequestView, request_view, GTK_TYPE_BOX)
@@ -55,14 +57,10 @@ static void request_view_init(RequestView *self) {
       self->params_view = params;
     }
 
-    ParamsView *body = params_view_new();
+    BodyView *body = body_view_new();
     if (body != NULL) {
       request_tabs_add_view(self->tabs_component, GTK_WIDGET(body), "Body");
-    }
-
-    ParamsView *auth = params_view_new();
-    if (auth != NULL) {
-      request_tabs_add_view(self->tabs_component, GTK_WIDGET(auth), "Auth");
+      self->body_view = body;
     }
 
     HeadersView *headers = headers_view_new();
@@ -96,4 +94,9 @@ ParamsView *request_view_get_params_view(RequestView *self) {
 HeadersView *request_view_get_headers_view(RequestView *self) {
   g_return_val_if_fail(REQUEST_IS_VIEW(self), NULL);
   return self->headers_view;
+}
+
+BodyView *request_view_get_body_view(RequestView *self) {
+  g_return_val_if_fail(REQUEST_IS_VIEW(self), NULL);
+  return self->body_view;
 }

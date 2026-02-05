@@ -87,12 +87,12 @@ static void response_content_init(ResponseContent *self) {
                  create_shortcut_row("Send Request", "Ctrl + Enter"));
   gtk_box_append(GTK_BOX(shortcuts_container),
                  create_shortcut_row("Focus URL", "Ctrl + L"));
-  gtk_box_append(GTK_BOX(shortcuts_container),
+  /*gtk_box_append(GTK_BOX(shortcuts_container),
                  create_shortcut_row("Edit Cookies", "Ctrl + K"));
   gtk_box_append(GTK_BOX(shortcuts_container),
                  create_shortcut_row("Environment Editor", "Ctrl + E"));
   gtk_box_append(GTK_BOX(shortcuts_container),
-                 create_shortcut_row("Keyboard Shortcuts", "Ctrl + Shift + /"));
+  create_shortcut_row("Keyboard Shortcuts", "Ctrl + Shift + /"));*/
 
   gtk_box_append(GTK_BOX(empty_center_box), shortcuts_container);
 

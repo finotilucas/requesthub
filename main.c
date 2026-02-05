@@ -24,6 +24,7 @@
 #include "src/http/http.h"
 #include "src/http/http_pool.h"
 #include "src/http/request.h"
+#include "src/ui/views/body_view.h"
 #include "src/ui/views/headers_view.h"
 #include "src/ui/views/params_view.h"
 #include "src/ui/views/request_view.h"
@@ -88,6 +89,11 @@ static void on_send_clicked(RequestTopBar *bar, gpointer user_data) {
   HeadersView *hv = request_view_get_headers_view(ctx->request_view);
   if (hv && req) {
     headers_view_apply_to_request(hv, req);
+  }
+
+  BodyView *bv = request_view_get_body_view(ctx->request_view);
+  if (bv && req) {
+    body_view_apply_to_request(bv, req);
   }
 
   request_top_bar_set_loading(bar, TRUE);

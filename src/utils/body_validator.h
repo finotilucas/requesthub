@@ -21,19 +21,22 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#pragma once
+#ifndef BODY_VALIDATOR_H
+#define BODY_VALIDATOR_H
 
-#include "../components/request_top_bar.h"
-#include "body_view.h"
-#include "headers_view.h"
-#include "params_view.h"
-#include <gtk/gtk.h>
+#include <glib.h>
 
-#define REQUEST_TYPE_VIEW (request_view_get_type())
-G_DECLARE_FINAL_TYPE(RequestView, request_view, REQUEST, VIEW, GtkBox)
+gboolean body_validator_validate_json(const char *content,
+                                      const char **error_msg);
 
-RequestView *request_view_new(void);
-RequestTopBar *request_view_get_top_bar(RequestView *self);
-ParamsView *request_view_get_params_view(RequestView *self);
-HeadersView *request_view_get_headers_view(RequestView *self);
-BodyView *request_view_get_body_view(RequestView *self);
+gboolean body_validator_validate_xml(const char *content,
+                                     const char **error_msg);
+
+gboolean body_validator_validate_yaml(const char *content,
+                                      const char **error_msg);
+
+char *body_validator_format_json(const char *content);
+
+char *body_validator_format_xml(const char *content);
+
+#endif
