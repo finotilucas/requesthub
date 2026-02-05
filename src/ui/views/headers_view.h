@@ -21,17 +21,21 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#pragma once
+#ifndef HEADERS_VIEW_H
+#define HEADERS_VIEW_H
 
-#include "../components/request_top_bar.h"
-#include "headers_view.h"
-#include "params_view.h"
+#include "../../http/request.h"
 #include <gtk/gtk.h>
 
-#define REQUEST_TYPE_VIEW (request_view_get_type())
-G_DECLARE_FINAL_TYPE(RequestView, request_view, REQUEST, VIEW, GtkBox)
+G_BEGIN_DECLS
 
-RequestView *request_view_new(void);
-RequestTopBar *request_view_get_top_bar(RequestView *self);
-ParamsView *request_view_get_params_view(RequestView *self);
-HeadersView *request_view_get_headers_view(RequestView *self);
+#define TYPE_HEADERS_VIEW (headers_view_get_type())
+G_DECLARE_FINAL_TYPE(HeadersView, headers_view, HEADERS, VIEW, GtkBox)
+
+HeadersView *headers_view_new(void);
+void headers_view_apply_to_request(HeadersView *self, HttpRequest *request);
+void headers_view_clear_all(HeadersView *self);
+
+G_END_DECLS
+
+#endif

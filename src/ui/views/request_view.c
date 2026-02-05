@@ -23,6 +23,7 @@
 
 #include "request_view.h"
 #include "../components/request_tabs.h"
+#include "headers_view.h"
 #include "params_view.h"
 
 struct _RequestView {
@@ -30,6 +31,7 @@ struct _RequestView {
   RequestTopBar *top_bar;
   RequestTabs *tabs_component;
   ParamsView *params_view;
+  HeadersView *headers_view;
 };
 
 G_DEFINE_TYPE(RequestView, request_view, GTK_TYPE_BOX)
@@ -63,10 +65,11 @@ static void request_view_init(RequestView *self) {
       request_tabs_add_view(self->tabs_component, GTK_WIDGET(auth), "Auth");
     }
 
-    ParamsView *headers = params_view_new();
+    HeadersView *headers = headers_view_new();
     if (headers != NULL) {
       request_tabs_add_view(self->tabs_component, GTK_WIDGET(headers),
                             "Headers");
+      self->headers_view = headers;
     }
   } else {
     g_warning("Can not load RequestView");
@@ -88,4 +91,9 @@ RequestTopBar *request_view_get_top_bar(RequestView *self) {
 ParamsView *request_view_get_params_view(RequestView *self) {
   g_return_val_if_fail(REQUEST_IS_VIEW(self), NULL);
   return self->params_view;
+}
+
+HeadersView *request_view_get_headers_view(RequestView *self) {
+  g_return_val_if_fail(REQUEST_IS_VIEW(self), NULL);
+  return self->headers_view;
 }

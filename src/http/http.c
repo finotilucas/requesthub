@@ -79,6 +79,11 @@ static void configure_method(CURL *curl, HttpRequest *request) {
   }
 }
 
+static void add_default_headers(struct curl_slist **headers) {
+  *headers = curl_slist_append(*headers, "User-Agent: requesthub/0.0.1");
+  *headers = curl_slist_append(*headers, "Accept: */*");
+}
+
 static struct curl_slist *build_headers_list(HttpRequest *request) {
   struct curl_slist *list = NULL;
   for (int i = 0; i < request->headers_count; i++) {
@@ -105,6 +110,8 @@ static void configure_curl_options(CURL *curl, HttpRequest *request,
                                    struct curl_slist *headers, char *url) {
   curl_easy_setopt(curl, CURLOPT_URL, url);
   configure_method(curl, request);
+
+  add_default_headers(&headers);
 
   if (headers) {
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
