@@ -6,7 +6,7 @@ ifeq ($(findstring MINGW,$(UNAME_S)),MINGW)
     SANITIZE   :=
 else
     WINDOWS    := 0
-    CC         := cc
+    CC         := gcc
     EXE        :=
     SANITIZE   := -fsanitize=address -fsanitize=undefined
 endif
@@ -45,7 +45,7 @@ COMMON_CFLAGS := -Wall -Wextra -Werror -std=gnu11 -Iinclude \
                  $(YAML_CFLAGS)
 
 CFLAGS_DEBUG   := -g $(SANITIZE) $(COMMON_CFLAGS)
-CFLAGS_RELEASE := -O2 -DNDEBUG -march=native $(COMMON_CFLAGS)
+CFLAGS_RELEASE := -O3 -DNDEBUG -march=native -flto -fomit-frame-pointer -fno-exceptions -fno-asynchronous-unwind-tables $(COMMON_CFLAGS)
 
 LDFLAGS_COMMON := $(GTK_LIBS) \
                   $(SOURCEVIEW_LIBS) \
