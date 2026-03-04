@@ -28,18 +28,18 @@
 
 typedef struct {
   char *url;
-  HttpMethods method;
   char *body;
   char **headers;
-  int headers_count;
   char **query_params;
-  int query_count;
+  char *auth_header;
   long timeout;
   long connect_timeout;
   long follow_redirects;
   long max_redirects;
-  char *auth_header;
   long verify_ssl;
+  int headers_count;
+  int query_count;
+  HttpMethods method;
 } HttpRequest;
 
 HttpRequest *http_request_new(const char *url, HttpMethods method);

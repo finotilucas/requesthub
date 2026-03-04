@@ -28,21 +28,17 @@
 #include <stddef.h>
 
 typedef struct {
-  CURLcode curl_code;
-  long http_status;
-
   char *body;
-  size_t body_size;
-
   char *content_type;
-  double total_time;
-  double download_size;
-
   char *header_location;
   char *etag;
-  long content_length;
-
   struct curl_slist *all_headers;
+  size_t body_size;
+  double total_time;
+  double download_size;
+  long http_status;
+  long content_length;
+  CURLcode curl_code;
 } HttpResponse;
 
 HttpResponse *http_response_create(void);
