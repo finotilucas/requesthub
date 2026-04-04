@@ -42,8 +42,10 @@ static void configure_method(CURL *curl, HttpRequest *request) {
     break;
   case HTTP_POST:
     curl_easy_setopt(curl, CURLOPT_POST, 1L);
-    if (request->body) {
-      curl_easy_setopt(curl, CURLOPT_POSTFIELDS, request->body);
+    if (request->body && *request->body != '\0') {
+      curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE,
+                       (long)strlen(request->body));
+      curl_easy_setopt(curl, CURLOPT_COPYPOSTFIELDS, request->body);
     } else {
       curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "");
       curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, 0L);
@@ -51,8 +53,10 @@ static void configure_method(CURL *curl, HttpRequest *request) {
     break;
   case HTTP_PUT:
     curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
-    if (request->body) {
-      curl_easy_setopt(curl, CURLOPT_POSTFIELDS, request->body);
+    if (request->body && *request->body != '\0') {
+      curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE,
+                       (long)strlen(request->body));
+      curl_easy_setopt(curl, CURLOPT_COPYPOSTFIELDS, request->body);
     } else {
       curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "");
       curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, 0L);
@@ -63,8 +67,10 @@ static void configure_method(CURL *curl, HttpRequest *request) {
     break;
   case HTTP_PATCH:
     curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PATCH");
-    if (request->body) {
-      curl_easy_setopt(curl, CURLOPT_POSTFIELDS, request->body);
+    if (request->body && *request->body != '\0') {
+      curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE,
+                       (long)strlen(request->body));
+      curl_easy_setopt(curl, CURLOPT_COPYPOSTFIELDS, request->body);
     } else {
       curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "");
       curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, 0L);
@@ -79,9 +85,25 @@ static void configure_method(CURL *curl, HttpRequest *request) {
   }
 }
 
+static int header_exists(struct curl_slist *list, const char *key) {
+  size_t key_len = strlen(key);
+  while (list) {
+    if (strncasecmp(list->data, key, key_len) == 0 &&
+        list->data[key_len] == ':') {
+      return 1;
+    }
+    list = list->next;
+  }
+  return 0;
+}
+
 static void add_default_headers(struct curl_slist **headers) {
-  *headers = curl_slist_append(*headers, "User-Agent: requesthub/0.0.1");
-  *headers = curl_slist_append(*headers, "Accept: */*");
+  if (!header_exists(*headers, "User-Agent")) {
+    *headers = curl_slist_append(*headers, "User-Agent: requesthub/0.0.1");
+  }
+  if (!header_exists(*headers, "Accept")) {
+    *headers = curl_slist_append(*headers, "Accept: */*");
+  }
 }
 
 static struct curl_slist *build_headers_list(HttpRequest *request) {
@@ -107,14 +129,14 @@ static struct curl_slist *build_headers_list(HttpRequest *request) {
 
 static void configure_curl_options(CURL *curl, HttpRequest *request,
                                    HttpResponse *response,
-                                   struct curl_slist *headers, char *url) {
+                                   struct curl_slist **headers, char *url) {
   curl_easy_setopt(curl, CURLOPT_URL, url);
   configure_method(curl, request);
 
-  add_default_headers(&headers);
+  add_default_headers(headers);
 
-  if (headers) {
-    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+  if (*headers) {
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, *headers);
   }
 
   if (request->timeout > 0) {
@@ -143,7 +165,9 @@ static void configure_curl_options(CURL *curl, HttpRequest *request,
   curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0);
 
   curl_easy_setopt(curl, CURLOPT_TCP_KEEPALIVE, 1L);
+
   curl_easy_setopt(curl, CURLOPT_TCP_KEEPIDLE, 120L);
+
   curl_easy_setopt(curl, CURLOPT_TCP_KEEPINTVL, 60L);
 
   curl_easy_setopt(curl, CURLOPT_TCP_NODELAY, 1L);
@@ -236,7 +260,8 @@ HttpResponse *http_request_perform(HttpRequest *request) {
   }
 
   struct curl_slist *headers = build_headers_list(request);
-  configure_curl_options(curl, request, response, headers, final_url);
+
+  configure_curl_options(curl, request, response, &headers, final_url);
 
   response->curl_code = curl_easy_perform(curl);
 

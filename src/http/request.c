@@ -44,7 +44,6 @@ HttpRequest *http_request_new(const char *url, HttpMethods method) {
   }
 
   request->method = method;
-
   request->timeout = 30;
   request->connect_timeout = 10;
   request->follow_redirects = 1;
