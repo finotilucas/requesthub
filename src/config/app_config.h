@@ -27,8 +27,6 @@
 #include <glib.h>
 #include <gtk/gtk.h>
 
-#define APP_ID "com.requesthub.app"
-
 typedef struct _AppConfig AppConfig;
 
 struct _AppConfig {
@@ -39,9 +37,7 @@ struct _AppConfig {
   gboolean maximize_on_start;
 };
 
-_Static_assert(sizeof(AppConfig) > 0, "AppConfig must not be empty");
-
-AppConfig *app_config_new(const gchar *app_id);
+AppConfig *app_config_new();
 void app_config_free(AppConfig *self);
 gboolean app_config_apply_to_window(const AppConfig *self, GtkWindow *window);
 

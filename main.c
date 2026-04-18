@@ -32,7 +32,7 @@ int main(int argc, char **argv) {
   curl_global_init(CURL_GLOBAL_ALL);
   http_pool_init();
 
-  AppConfig *cfg = app_config_new(APP_ID);
+  AppConfig *cfg = app_config_new();
 
   GtkApplication *app =
       gtk_application_new(cfg->app_id, G_APPLICATION_DEFAULT_FLAGS);

@@ -28,10 +28,10 @@ static const gchar *DEFAULT_WINDOW_TITLE = "Request Hub";
 static const gint DEFAULT_WIDTH = 1024;
 static const gint DEFAULT_HEIGHT = 768;
 
-AppConfig *app_config_new(const gchar *app_id) {
+AppConfig *app_config_new() {
   AppConfig *self = g_new0(AppConfig, 1);
 
-  self->app_id = g_strdup(app_id && *app_id ? app_id : DEFAULT_APP_ID);
+  self->app_id = g_strdup(DEFAULT_APP_ID);
   self->window_title = g_strdup(DEFAULT_WINDOW_TITLE);
   self->default_width = DEFAULT_WIDTH;
   self->default_height = DEFAULT_HEIGHT;
