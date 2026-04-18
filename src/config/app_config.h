@@ -21,31 +21,28 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#include "src/config/app_config.h"
-#include "src/core/app.h"
-#include "src/http/http_pool.h"
+#ifndef APP_CONFIG_H
+#define APP_CONFIG_H
 
-#include <curl/curl.h>
+#include <glib.h>
 #include <gtk/gtk.h>
 
-int main(int argc, char **argv) {
-  curl_global_init(CURL_GLOBAL_ALL);
-  http_pool_init();
+#define APP_ID "com.requesthub.app"
 
-  AppConfig *cfg = app_config_new(APP_ID);
+typedef struct _AppConfig AppConfig;
 
-  GtkApplication *app =
-      gtk_application_new(cfg->app_id, G_APPLICATION_DEFAULT_FLAGS);
+struct _AppConfig {
+  gchar *app_id;
+  gchar *window_title;
+  gint default_width;
+  gint default_height;
+  gboolean maximize_on_start;
+};
 
-  g_signal_connect(app, "activate", G_CALLBACK(on_activate), cfg);
+_Static_assert(sizeof(AppConfig) > 0, "AppConfig must not be empty");
 
-  int status = g_application_run(G_APPLICATION(app), argc, argv);
+AppConfig *app_config_new(const gchar *app_id);
+void app_config_free(AppConfig *self);
+gboolean app_config_apply_to_window(const AppConfig *self, GtkWindow *window);
 
-  g_object_unref(app);
-  app_config_free(cfg);
-
-  http_pool_cleanup();
-  curl_global_cleanup();
-
-  return status;
-}
+#endif
