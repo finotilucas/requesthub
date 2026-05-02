@@ -1,0 +1,42 @@
+name: ubuntu-build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y \
+            build-essential \
+            pkg-config \
+            libgtk-4-dev \
+            libgtksourceview-5-dev \
+            libxml2-dev \
+            libyaml-dev \
+            libcjson-dev \
+            libcurl4-openssl-dev \
+            libglib2.0-dev
+
+      - name: Show pkg-config
+        run: pkg-config --list-all | sort
+
+      - name: Check deps
+        run: make deps-check
+
+      - name: Build (debug)
+        run: make debug
+
+      - name: Build (release)
+        run: make release
+
+      - name: Run tests
+        run: make test
