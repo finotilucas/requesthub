@@ -23,7 +23,7 @@
 
 #include "app_config.h"
 
-static const gchar *DEFAULT_APP_ID = "com.requesthub.app";
+static const gchar *DEFAULT_APP_ID = "io.github.finotilucas.requesthub";
 static const gchar *DEFAULT_WINDOW_TITLE = "Request Hub";
 static const gint DEFAULT_WIDTH = 1280;
 static const gint DEFAULT_HEIGHT = 768;
