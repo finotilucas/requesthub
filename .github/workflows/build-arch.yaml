@@ -55,9 +55,11 @@ jobs:
         run: |
           pacman -Syu --noconfirm
           pacman -S --noconfirm \
+            base-devel \
+            pkgconf \
             glib2 \
             cjson \
-            curl
+            curl  
 
       - uses: actions/checkout@v4
 
