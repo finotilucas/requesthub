@@ -23,7 +23,7 @@ jobs:
             gtk4 \
             gtksourceview5 \
             libxml2 \
-            yaml \
+            libyaml \
             cjson \
             curl \
             libasan \
