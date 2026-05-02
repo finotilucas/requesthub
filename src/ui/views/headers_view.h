@@ -35,6 +35,12 @@ G_DECLARE_FINAL_TYPE(HeadersView, headers_view, HEADERS, VIEW, GtkBox)
 HeadersView *headers_view_new(void);
 void headers_view_apply_to_request(HeadersView *self, HttpRequest *request);
 void headers_view_clear_all(HeadersView *self);
+void headers_view_for_each(HeadersView *self,
+                           void (*func)(const char *key, const char *value,
+                                        gpointer user_data),
+                           gpointer user_data);
+void headers_view_add_pair(HeadersView *self, const char *key,
+                           const char *value);
 
 G_END_DECLS
 

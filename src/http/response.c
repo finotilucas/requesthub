@@ -23,25 +23,17 @@
 
 #include "response.h"
 
+#include <glib.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
-#define MAX_RESPONSE_SIZE (10 * 1024 * 1024) // 10mb
+#define MAX_RESPONSE_SIZE (10 * 1024 * 1024)
 
 HttpResponse *http_response_create(void) {
-  HttpResponse *response = calloc(1, sizeof(HttpResponse));
-  if (response == NULL) {
-    return NULL;
-  }
+  HttpResponse *response = g_new0(HttpResponse, 1);
 
-  response->body = malloc(1);
-  if (response->body == NULL) {
-    free(response);
-    return NULL;
-  }
-
+  response->body = g_malloc(1);
   response->body[0] = '\0';
   response->body_size = 0;
   response->curl_code = CURLE_OK;
@@ -55,16 +47,16 @@ void http_response_free(HttpResponse *response) {
     return;
   }
 
-  free(response->body);
-  free(response->content_type);
-  free(response->header_location);
-  free(response->etag);
+  g_free(response->body);
+  g_free(response->content_type);
+  g_free(response->header_location);
+  g_free(response->etag);
 
   if (response->all_headers != NULL) {
     curl_slist_free_all(response->all_headers);
   }
 
-  free(response);
+  g_free(response);
 }
 
 size_t write_callback(void *contents, size_t size, size_t nmemb, void *userp) {
@@ -81,13 +73,8 @@ size_t write_callback(void *contents, size_t size, size_t nmemb, void *userp) {
     return 0;
   }
 
-  char *ptr = realloc(response->body, response->body_size + realsize + 1);
-  if (ptr == NULL) {
-    fprintf(stderr, "Error: Failed to allocate memory\n");
-    return 0;
-  }
-
-  response->body = ptr;
+  response->body =
+      g_realloc(response->body, response->body_size + realsize + 1);
   memcpy(&(response->body[response->body_size]), contents, realsize);
   response->body_size += realsize;
   response->body[response->body_size] = '\0';

@@ -21,26 +21,43 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#ifndef PARAMS_VIEW_H
-#define PARAMS_VIEW_H
+#pragma once
 
-#include "../../http/request.h"
 #include <gtk/gtk.h>
 
 G_BEGIN_DECLS
 
-#define TYPE_PARAMS_VIEW (params_view_get_type())
-G_DECLARE_FINAL_TYPE(ParamsView, params_view, PARAMS, VIEW, GtkBox)
+#define KV_TYPE_LIST_VIEW (kv_list_view_get_type())
+G_DECLARE_FINAL_TYPE(KvListView, kv_list_view, KV, LIST_VIEW, GtkBox)
 
-ParamsView *params_view_new(void);
-void params_view_apply_to_request(ParamsView *self, HttpRequest *request);
-void params_view_clear_all(ParamsView *self);
-void params_view_for_each(ParamsView *self,
-                          void (*func)(const char *key, const char *value,
-                                       gpointer user_data),
-                          gpointer user_data);
-void params_view_add_pair(ParamsView *self, const char *key, const char *value);
+typedef struct {
+  const char *title;
+  const char *add_button_label;
+  const char *clear_button_label;
+  const char *key_placeholder;
+  const char *value_placeholder;
+  gboolean add_prepends;
+} KvListViewConfig;
+
+typedef enum {
+  KV_LIST_ITER_ALL,
+  KV_LIST_ITER_EDITABLE,
+} KvListIterMode;
+
+typedef void (*KvListIterFunc)(const char *key, const char *value,
+                               gpointer user_data);
+
+KvListView *kv_list_view_new(const KvListViewConfig *config);
+
+void kv_list_view_add_fixed(KvListView *self, const char *key,
+                            const char *value, const char *info_tooltip);
+
+void kv_list_view_add_editable(KvListView *self, const char *key,
+                               const char *value);
+
+void kv_list_view_clear_editable(KvListView *self);
+
+void kv_list_view_for_each(KvListView *self, KvListIterMode mode,
+                           KvListIterFunc func, gpointer user_data);
 
 G_END_DECLS
-
-#endif

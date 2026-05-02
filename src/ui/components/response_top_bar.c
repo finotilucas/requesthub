@@ -100,11 +100,16 @@ void response_top_bar_update(ResponseTopBar *self, HttpResponse *resp) {
     return;
   }
 
-  char buf[128];
-  g_snprintf(buf, sizeof(buf), "%ld", resp->http_status);
-  gtk_label_set_text(self->status_value_label, buf);
-  apply_status_style(GTK_WIDGET(self->status_value_label),
-                     (int)resp->http_status);
+  if (resp->curl_code != CURLE_OK) {
+    gtk_label_set_text(self->status_value_label, "ERR");
+    apply_status_style(GTK_WIDGET(self->status_value_label), 500);
+  } else {
+    char buf[128];
+    g_snprintf(buf, sizeof(buf), "%ld", resp->http_status);
+    gtk_label_set_text(self->status_value_label, buf);
+    apply_status_style(GTK_WIDGET(self->status_value_label),
+                       (int)resp->http_status);
+  }
 
   char *time_str = format_response_time(resp->total_time * 1000.0);
   gtk_label_set_text(self->time_label, time_str);

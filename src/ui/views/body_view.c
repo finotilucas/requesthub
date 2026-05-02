@@ -42,6 +42,12 @@ struct _BodyView {
 
 G_DEFINE_TYPE(BodyView, body_view, GTK_TYPE_BOX)
 
+/*
+ * GtkSourceView's syntax highlighter is lazy: changing the language via
+ * gtk_source_buffer_set_language() does not retroactively re-highlight existing
+ * text — it only re-evaluates after a buffer modification event. This dirties
+ * the buffer with a single-character round-trip to force a full rehighlight.
+ */
 static void force_highlight_immediate(GtkSourceBuffer *buffer) {
   GtkTextIter start, end;
 

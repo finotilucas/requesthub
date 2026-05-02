@@ -23,8 +23,11 @@
 
 #include "app.h"
 #include "../config/app_config.h"
+#include "../history/history.h"
 #include "../http/http.h"
 #include "../http/request.h"
+#include "../http/response.h"
+#include "../ui/components/history_sidebar.h"
 #include "../ui/views/body_view.h"
 #include "../ui/views/headers_view.h"
 #include "../ui/views/params_view.h"
@@ -35,8 +38,108 @@
 
 #include <curl/curl.h>
 #include <gtk/gtk.h>
+#include <string.h>
 
-void async_request_data_free(AsyncRequestData *data) { g_free(data); }
+#define INITIAL_REQUEST_PANE_WIDTH 450
+
+void async_request_data_free(AsyncRequestData *data) {
+  if (data == NULL) {
+    return;
+  }
+  if (data->history_entry != NULL) {
+    history_entry_free(data->history_entry);
+  }
+  g_free(data);
+}
+
+static void capture_header_to_entry(const char *key, const char *value,
+                                    gpointer user_data) {
+  HistoryEntry *entry = user_data;
+  history_entry_add_header(entry, key, value);
+}
+
+static void capture_param_to_entry(const char *key, const char *value,
+                                   gpointer user_data) {
+  HistoryEntry *entry = user_data;
+  history_entry_add_query_param(entry, key, value);
+}
+
+static HistoryEntry *build_history_entry_from_views(RequestView *view,
+                                                    const char *url,
+                                                    HttpMethods method) {
+  HistoryEntry *entry = history_entry_new();
+  if (entry == NULL) {
+    return NULL;
+  }
+
+  entry->method = method;
+  history_entry_set_url(entry, url);
+
+  ParamsView *pv = request_view_get_params_view(view);
+  if (pv != NULL) {
+    params_view_for_each(pv, capture_param_to_entry, entry);
+  }
+
+  HeadersView *hv = request_view_get_headers_view(view);
+  if (hv != NULL) {
+    headers_view_for_each(hv, capture_header_to_entry, entry);
+  }
+
+  BodyView *bv = request_view_get_body_view(view);
+  if (bv != NULL) {
+    char *content = body_view_get_content(bv);
+    if (content != NULL && *content != '\0') {
+      history_entry_set_body(entry, content);
+    }
+    g_free(content);
+  }
+
+  return entry;
+}
+
+static HttpResponse *response_snapshot_from_entry(const HistoryEntry *entry) {
+  if (entry == NULL || entry->http_status <= 0) {
+    return NULL;
+  }
+
+  HttpResponse *resp = http_response_create();
+  resp->http_status = entry->http_status;
+  resp->total_time = entry->total_time_s;
+
+  if (entry->response_body != NULL) {
+    g_free(resp->body);
+    resp->body = g_strdup(entry->response_body);
+    resp->body_size = strlen(resp->body);
+  } else {
+    resp->body_size = entry->response_size;
+  }
+
+  if (entry->response_content_type != NULL) {
+    resp->content_type = g_strdup(entry->response_content_type);
+  }
+
+  return resp;
+}
+
+static void on_history_entry_selected(HistorySidebar *sidebar,
+                                      gpointer entry_ptr, gpointer user_data) {
+  (void)sidebar;
+  AppContext *ctx = user_data;
+  HistoryEntry *entry = entry_ptr;
+  if (ctx == NULL || ctx->request_view == NULL || entry == NULL) {
+    return;
+  }
+
+  request_view_load_history_entry(ctx->request_view, entry);
+
+  if (ctx->response_view != NULL) {
+    HttpResponse *snapshot = response_snapshot_from_entry(entry);
+    response_view_update(ctx->response_view, snapshot);
+    if (snapshot != NULL) {
+      http_response_free(snapshot);
+    }
+  }
+}
 
 void request_worker_thread(GTask *task, gpointer source_obj, gpointer task_data,
                            GCancellable *cancellable) {
@@ -60,6 +163,13 @@ void on_request_finished(GObject *source, GAsyncResult *res,
   response_view_update(rd->ctx->response_view, resp);
   request_top_bar_set_loading(rd->bar, FALSE);
 
+  if (rd->history_entry != NULL && rd->ctx != NULL &&
+      rd->ctx->history_sidebar != NULL) {
+    history_entry_apply_response(rd->history_entry, resp);
+    history_sidebar_record(rd->ctx->history_sidebar, rd->history_entry);
+    rd->history_entry = NULL;
+  }
+
   async_request_data_free(rd);
 }
 
@@ -70,17 +180,23 @@ void on_send_clicked(RequestTopBar *bar, gpointer user_data) {
   HttpMethods method = request_top_bar_get_method(bar);
 
   HttpRequest *req = http_request_new(url, method);
+  if (req == NULL) {
+    return;
+  }
+
+  HistoryEntry *entry = build_history_entry_from_views(ctx->request_view, url,
+                                                       method);
 
   ParamsView *pv = request_view_get_params_view(ctx->request_view);
-  if (pv && req)
+  if (pv)
     params_view_apply_to_request(pv, req);
 
   HeadersView *hv = request_view_get_headers_view(ctx->request_view);
-  if (hv && req)
+  if (hv)
     headers_view_apply_to_request(hv, req);
 
   BodyView *bv = request_view_get_body_view(ctx->request_view);
-  if (bv && req)
+  if (bv)
     body_view_apply_to_request(bv, req);
 
   request_top_bar_set_loading(bar, TRUE);
@@ -89,6 +205,7 @@ void on_send_clicked(RequestTopBar *bar, gpointer user_data) {
   rd->request = req;
   rd->bar = bar;
   rd->ctx = ctx;
+  rd->history_entry = entry;
 
   GTask *task = g_task_new(NULL, NULL, on_request_finished, rd);
   g_task_set_task_data(task, rd, NULL);
@@ -139,20 +256,34 @@ void on_activate(GtkApplication *app, gpointer user_data) {
   app_config_apply_to_window(cfg, GTK_WINDOW(window));
   app_config_free(cfg);
 
-  GtkWidget *paned = gtk_paned_new(GTK_ORIENTATION_HORIZONTAL);
+  GtkWidget *inner_paned = gtk_paned_new(GTK_ORIENTATION_HORIZONTAL);
   RequestView *request_view = request_view_new();
   ResponseView *response_view = response_view_new();
 
-  gtk_paned_set_start_child(GTK_PANED(paned), GTK_WIDGET(request_view));
-  gtk_paned_set_end_child(GTK_PANED(paned), GTK_WIDGET(response_view));
-  gtk_paned_set_position(GTK_PANED(paned), 450);
+  gtk_paned_set_start_child(GTK_PANED(inner_paned), GTK_WIDGET(request_view));
+  gtk_paned_set_end_child(GTK_PANED(inner_paned), GTK_WIDGET(response_view));
+  gtk_paned_set_position(GTK_PANED(inner_paned), INITIAL_REQUEST_PANE_WIDTH);
+  gtk_paned_set_shrink_end_child(GTK_PANED(inner_paned), FALSE);
+
+  HistorySidebar *history_sidebar = history_sidebar_new();
+
+  GtkWidget *outer_paned = gtk_paned_new(GTK_ORIENTATION_HORIZONTAL);
+  gtk_paned_set_start_child(GTK_PANED(outer_paned),
+                            GTK_WIDGET(history_sidebar));
+  gtk_paned_set_end_child(GTK_PANED(outer_paned), inner_paned);
+  gtk_paned_set_position(GTK_PANED(outer_paned), HISTORY_SIDEBAR_WIDTH);
+  gtk_paned_set_resize_start_child(GTK_PANED(outer_paned), FALSE);
+  gtk_paned_set_shrink_start_child(GTK_PANED(outer_paned), FALSE);
 
   AppContext *ctx = g_new0(AppContext, 1);
   ctx->response_view = response_view;
   ctx->request_view = request_view;
+  ctx->history_sidebar = history_sidebar;
 
   g_signal_connect(request_view_get_top_bar(request_view), "send-clicked",
                    G_CALLBACK(on_send_clicked), ctx);
+  g_signal_connect(history_sidebar, "entry-selected",
+                   G_CALLBACK(on_history_entry_selected), ctx);
 
   g_object_set_data_full(G_OBJECT(window), "app-ctx", ctx, g_free);
 
@@ -164,6 +295,6 @@ void on_activate(GtkApplication *app, gpointer user_data) {
   setup_application_shortcuts(app, GTK_APPLICATION_WINDOW(window),
                               app_shortcuts, G_N_ELEMENTS(app_shortcuts));
 
-  gtk_window_set_child(GTK_WINDOW(window), paned);
+  gtk_window_set_child(GTK_WINDOW(window), outer_paned);
   gtk_window_present(GTK_WINDOW(window));
 }

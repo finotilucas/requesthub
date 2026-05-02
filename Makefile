@@ -47,11 +47,18 @@ COMMON_CFLAGS := -Wall -Wextra -Werror -std=gnu11 -Iinclude \
 CFLAGS_DEBUG   := -g $(SANITIZE) $(COMMON_CFLAGS)
 CFLAGS_RELEASE := -O2 -DNDEBUG -march=native $(COMMON_CFLAGS)
 
+ifeq ($(WINDOWS),1)
+    EXTRA_GIO_LIBS :=
+else
+    EXTRA_GIO_LIBS := -lgmodule-2.0 -lmount
+endif
+
 LDFLAGS_COMMON := $(GTK_LIBS) \
                   $(SOURCEVIEW_LIBS) \
                   $(CJSON_LIBS) \
                   $(LIBXML2_LIBS) \
                   $(YAML_LIBS) \
+                  $(EXTRA_GIO_LIBS) \
                   -lcurl -lm
 
 LDFLAGS_DEBUG  := $(SANITIZE) $(LDFLAGS_COMMON)
@@ -97,14 +104,46 @@ $(RELEASE_OBJ_DIR)/%.o: %.c
 	@echo "Compiling (release): $<"
 	$(CC) $(CFLAGS_RELEASE) -c $< -o $@
 
-.PHONY: all debug release clean run run-release rebuild deps-check
+GLIB_TEST_CFLAGS := $(shell pkg-config --cflags glib-2.0)
+GLIB_TEST_LIBS   := $(shell pkg-config --libs   glib-2.0)
+
+TEST_DIR        := tests
+TEST_OBJ_DIR    := $(OBJ_DIR)/test
+TEST_BIN_DIR    := $(BUILD_DIR)/test
+TEST_TARGET     := $(TEST_BIN_DIR)/test_history$(EXE)
+
+TEST_SOURCES    := $(TEST_DIR)/test_history.c \
+                   $(SRC_DIR)/history/history.c
+
+TEST_OBJECTS    := $(TEST_SOURCES:%.c=$(TEST_OBJ_DIR)/%.o)
+
+TEST_CFLAGS     := -g -Wall -Wextra -Werror -std=gnu11 \
+                   $(GLIB_TEST_CFLAGS) $(CJSON_CFLAGS)
+
+TEST_LDFLAGS    := $(GLIB_TEST_LIBS) $(CJSON_LIBS)
+
+$(TEST_OBJ_DIR)/%.o: %.c
+	@mkdir -p $(dir $@)
+	@echo "Compiling (test):    $<"
+	$(CC) $(TEST_CFLAGS) -c $< -o $@
+
+$(TEST_TARGET): $(TEST_OBJECTS)
+	@mkdir -p $(TEST_BIN_DIR)
+	$(CC) $^ -o $@ $(TEST_LDFLAGS)
+
+test: $(TEST_TARGET)
+	$(TEST_TARGET)
+
+.PHONY: all debug release clean run run-release rebuild deps-check test
 
 deps-check:
 	@echo "Checking dependencies..."
 	@pkg-config --exists gtk4 || (echo "GTK4 not found" && exit 1)
 	@pkg-config --exists gtksourceview-5 || (echo "GtkSourceView-5 not found" && exit 1)
 	@pkg-config --exists libxml-2.0 || (echo "libxml2 not found" && exit 1)
+	@pkg-config --exists libcurl || (echo "libcurl not found" && exit 1)
 	@pkg-config --exists yaml-0.1 || (echo "libyaml not found via pkg-config (trying fallback)")
+	@pkg-config --exists libcjson || (echo "libcjson not found via pkg-config (trying fallback)")
 	@echo "Main dependencies OK"
 
 clean:

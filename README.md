@@ -33,18 +33,31 @@ _Tests performed on the same network conditions_
 - **Configurable timeouts** and redirects
 - **Response metadata** (status, headers, timing)
 
+### Request History
+
+- **Local-first sidebar** showing recent requests with method, URL, status, duration, size and relative timestamp
+- **One-click replay**: click an entry to restore method, URL, body, headers and query params into the editor and re-render the cached response
+- **Smart deduplication**: re-running the same URL+method updates the existing entry and bumps it to the top instead of cluttering the list
+- **Per-entry deletion** plus full-history clear from the sidebar header
+- **Persistence** at `~/.local/share/requesthub/history.json` (XDG data dir) with directory mode `0700` and file mode `0600`, written atomically
+- **Bounded** at 200 entries (oldest evicted automatically) and capped at 512 KB per cached response body
+- **Authorization headers are stripped** before persistence; binary / non-UTF-8 response bodies are not cached
+
 ## Known Limitations
 
 - Pool size is fixed at compile time
 - No built-in retry logic
 - No automatic rate limiting
 - Bearer tokens stored in plaintext memory
+- Request and cached response history is stored in plaintext JSON on disk (file is `0600`, but no encryption-at-rest). Cookies, custom auth headers (`X-API-Key`, etc.) and login/response bodies are persisted as-is — only `Authorization` is filtered. A future release may use `libsecret` to encrypt the history file.
 
 ## Roadmap
 
-- [ ] Implement request/response history
+- [x] Implement request/response history
 - [ ] Add request collections
 - [ ] Environment variables support
+- [ ] Encrypt history file via system keyring (libsecret)
+- [ ] Configurable redaction rules for sensitive headers/body patterns
 - [ ] WebSocket support
 - [ ] GraphQL support
 - [ ] Request/response interceptors
@@ -73,6 +86,14 @@ Whether it's bug fixes, new features, or documentation improvements.
 - Update documentation as needed
 - Ensure no memory leaks (verify with `valgrind`)
 - Run static analysis before submitting
+
+### Tests
+
+Unit tests for the `history` module (entry lifecycle, store operations, JSON round-trip) live under `tests/` and run via the GLib test framework. Each test runs in an isolated XDG directory tree (`G_TEST_OPTION_ISOLATE_DIRS`), so they never touch your real history file.
+
+```bash
+make test
+```
 
 ## License
 

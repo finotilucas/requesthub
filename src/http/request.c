@@ -24,25 +24,16 @@
 #include "request.h"
 
 #include <curl/curl.h>
-#include <stdlib.h>
+#include <glib.h>
 #include <string.h>
 
 HttpRequest *http_request_new(const char *url, HttpMethods method) {
-  if (url == NULL || strlen(url) == 0) {
+  if (url == NULL || *url == '\0') {
     return NULL;
   }
 
-  HttpRequest *request = calloc(1, sizeof(HttpRequest));
-  if (request == NULL) {
-    return NULL;
-  }
-
-  request->url = strdup(url);
-  if (request->url == NULL) {
-    free(request);
-    return NULL;
-  }
-
+  HttpRequest *request = g_new0(HttpRequest, 1);
+  request->url = g_strdup(url);
   request->method = method;
   request->timeout = 30;
   request->connect_timeout = 10;
@@ -58,25 +49,25 @@ void http_request_free(HttpRequest *request) {
     return;
   }
 
-  free(request->url);
-  free(request->body);
-  free(request->auth_header);
+  g_free(request->url);
+  g_free(request->body);
+  g_free(request->auth_header);
 
   if (request->headers != NULL) {
     for (int i = 0; i < request->headers_count; i++) {
-      free(request->headers[i]);
+      g_free(request->headers[i]);
     }
-    free(request->headers);
+    g_free(request->headers);
   }
 
   if (request->query_params != NULL) {
     for (int i = 0; i < request->query_count; i++) {
-      free(request->query_params[i]);
+      g_free(request->query_params[i]);
     }
-    free(request->query_params);
+    g_free(request->query_params);
   }
 
-  free(request);
+  g_free(request);
 }
 
 HttpRequest *http_request_add_header(HttpRequest *request, const char *header) {
@@ -84,21 +75,9 @@ HttpRequest *http_request_add_header(HttpRequest *request, const char *header) {
     return request;
   }
 
-  char *new_header_str = strdup(header);
-  if (new_header_str == NULL) {
-    return request;
-  }
-
-  char **new_headers =
-      realloc(request->headers, sizeof(char *) * (request->headers_count + 1));
-
-  if (new_headers == NULL) {
-    free(new_header_str);
-    return request;
-  }
-
-  request->headers = new_headers;
-  request->headers[request->headers_count] = new_header_str;
+  request->headers =
+      g_realloc(request->headers, sizeof(char *) * (request->headers_count + 1));
+  request->headers[request->headers_count] = g_strdup(header);
   request->headers_count++;
 
   return request;
@@ -116,7 +95,7 @@ HttpRequest *http_request_remove_header(HttpRequest *request, const char *key) {
   for (int i = 0; i < request->headers_count; i++) {
     if (strncasecmp(request->headers[i], key, key_len) == 0 &&
         request->headers[i][key_len] == ':') {
-      found_index = (int)i;
+      found_index = i;
       break;
     }
   }
@@ -125,7 +104,7 @@ HttpRequest *http_request_remove_header(HttpRequest *request, const char *key) {
     return request;
   }
 
-  free(request->headers[found_index]);
+  g_free(request->headers[found_index]);
 
   size_t num_elements_to_move = request->headers_count - found_index - 1;
   if (num_elements_to_move > 0) {
@@ -136,14 +115,11 @@ HttpRequest *http_request_remove_header(HttpRequest *request, const char *key) {
   request->headers_count--;
 
   if (request->headers_count == 0) {
-    free(request->headers);
+    g_free(request->headers);
     request->headers = NULL;
   } else {
-    char **temp =
-        realloc(request->headers, sizeof(char *) * request->headers_count);
-    if (temp != NULL) {
-      request->headers = temp;
-    }
+    request->headers =
+        g_realloc(request->headers, sizeof(char *) * request->headers_count);
   }
 
   return request;
@@ -154,14 +130,8 @@ HttpRequest *http_request_set_body(HttpRequest *request, const char *body) {
     return request;
   }
 
-  if (request->body != NULL) {
-    free(request->body);
-    request->body = NULL;
-  }
-
-  if (body != NULL) {
-    request->body = strdup(body);
-  }
+  g_free(request->body);
+  request->body = (body != NULL) ? g_strdup(body) : NULL;
 
   return request;
 }
@@ -181,27 +151,13 @@ HttpRequest *http_request_add_query_param(HttpRequest *request, const char *key,
     return request;
   }
 
-  size_t param_len = strlen(encoded_key) + strlen(encoded_value) + 2;
-  char *param = malloc(param_len);
-  if (param == NULL) {
-    curl_free(encoded_key);
-    curl_free(encoded_value);
-    return request;
-  }
-
-  snprintf(param, param_len, "%s=%s", encoded_key, encoded_value);
+  gchar *param = g_strdup_printf("%s=%s", encoded_key, encoded_value);
 
   curl_free(encoded_key);
   curl_free(encoded_value);
 
-  char **new_params = realloc(request->query_params,
-                              sizeof(char *) * (request->query_count + 1));
-  if (new_params == NULL) {
-    free(param);
-    return request;
-  }
-
-  request->query_params = new_params;
+  request->query_params = g_realloc(request->query_params,
+                                    sizeof(char *) * (request->query_count + 1));
   request->query_params[request->query_count] = param;
   request->query_count++;
 
@@ -216,8 +172,9 @@ HttpRequest *http_request_remove_query_param(HttpRequest *request,
   }
 
   char *encoded_key = curl_easy_escape(NULL, key, 0);
-  if (encoded_key == NULL)
+  if (encoded_key == NULL) {
     return request;
+  }
 
   size_t key_len = strlen(encoded_key);
   int found_index = -1;
@@ -236,7 +193,7 @@ HttpRequest *http_request_remove_query_param(HttpRequest *request,
     return request;
   }
 
-  free(request->query_params[found_index]);
+  g_free(request->query_params[found_index]);
 
   size_t num_elements_to_move = request->query_count - found_index - 1;
   if (num_elements_to_move > 0) {
@@ -248,15 +205,11 @@ HttpRequest *http_request_remove_query_param(HttpRequest *request,
   request->query_count--;
 
   if (request->query_count == 0) {
-    free(request->query_params);
+    g_free(request->query_params);
     request->query_params = NULL;
   } else {
-
-    char **temp =
-        realloc(request->query_params, sizeof(char *) * request->query_count);
-    if (temp != NULL) {
-      request->query_params = temp;
-    }
+    request->query_params =
+        g_realloc(request->query_params, sizeof(char *) * request->query_count);
   }
 
   return request;
@@ -277,17 +230,8 @@ HttpRequest *http_request_set_bearer_token(HttpRequest *request,
     return request;
   }
 
-  if (request->auth_header != NULL) {
-    free(request->auth_header);
-  }
-
-  size_t header_len = strlen("Authorization: Bearer ") + strlen(token) + 1;
-  request->auth_header = malloc(header_len);
-
-  if (request->auth_header != NULL) {
-    snprintf(request->auth_header, header_len, "Authorization: Bearer %s",
-             token);
-  }
+  g_free(request->auth_header);
+  request->auth_header = g_strdup_printf("Authorization: Bearer %s", token);
 
   return request;
 }

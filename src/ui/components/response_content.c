@@ -24,6 +24,7 @@
 #include "response_content.h"
 #include "source_view.h"
 #include <cjson/cJSON.h>
+#include <curl/curl.h>
 #include <gtk/gtk.h>
 #include <gtksourceview/gtksource.h>
 
@@ -131,11 +132,32 @@ void response_content_set_response(ResponseContent *self, HttpResponse *resp) {
     return;
   }
 
+  if (resp->curl_code != CURLE_OK) {
+    gchar *message =
+        g_strdup_printf("Network error (%d): %s\n\n%s", resp->curl_code,
+                        curl_easy_strerror(resp->curl_code),
+                        "The request did not reach a successful response. "
+                        "Check the URL, your connection, and TLS settings.");
+    gtk_text_buffer_set_text(GTK_TEXT_BUFFER(self->body_buffer), message, -1);
+    g_free(message);
+    gtk_stack_set_visible_child_name(self->stack, "data");
+    return;
+  }
+
   if (resp->body && g_utf8_validate(resp->body, -1, NULL)) {
     cJSON *json = cJSON_Parse(resp->body);
     if (json) {
       json_buffer_set_from_cjson(GTK_TEXT_BUFFER(self->body_buffer), json);
       cJSON_Delete(json);
+    } else if (resp->content_type != NULL &&
+               (g_str_has_prefix(resp->content_type, "application/json") ||
+                g_strstr_len(resp->content_type, -1, "+json") != NULL)) {
+      gchar *annotated = g_strdup_printf(
+          "/* Server advertised %s but body did not parse as JSON. */\n%s",
+          resp->content_type, resp->body);
+      gtk_text_buffer_set_text(GTK_TEXT_BUFFER(self->body_buffer), annotated,
+                               -1);
+      g_free(annotated);
     } else {
       gtk_text_buffer_set_text(GTK_TEXT_BUFFER(self->body_buffer), resp->body,
                                -1);

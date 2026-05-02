@@ -24,12 +24,11 @@
 #include "methods.h"
 #include <stddef.h>
 
-// Definimos o array estático aqui para que ele viva durante toda a execução
 static const char *methods_strings[] = {"GET",   "POST", "PUT",     "DELETE",
                                         "PATCH", "HEAD", "OPTIONS", NULL};
 
 const char *method_to_string(HttpMethods method) {
-  if (method >= 0 && method <= HTTP_OPTIONS) {
+  if ((unsigned)method <= (unsigned)HTTP_OPTIONS) {
     return methods_strings[method];
   }
   return "UNKNOWN";

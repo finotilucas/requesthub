@@ -24,7 +24,9 @@
 #ifndef APP_H
 #define APP_H
 
+#include "../history/history.h"
 #include "../http/request.h"
+#include "../ui/components/history_sidebar.h"
 #include "../ui/views/request_view.h"
 #include "../ui/views/response_view.h"
 #include <gtk/gtk.h>
@@ -32,12 +34,14 @@
 typedef struct {
   ResponseView *response_view;
   RequestView *request_view;
+  HistorySidebar *history_sidebar;
 } AppContext;
 
 typedef struct {
   HttpRequest *request;
   RequestTopBar *bar;
   AppContext *ctx;
+  HistoryEntry *history_entry;
 } AsyncRequestData;
 
 void async_request_data_free(AsyncRequestData *data);

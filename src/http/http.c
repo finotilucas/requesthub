@@ -27,9 +27,20 @@
 #include "response.h"
 
 #include <curl/curl.h>
+#include <glib.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
+
+static void apply_request_body(CURL *curl, const HttpRequest *request) {
+  if (request->body != NULL && *request->body != '\0') {
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE,
+                     (long)strlen(request->body));
+    curl_easy_setopt(curl, CURLOPT_COPYPOSTFIELDS, request->body);
+  } else {
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "");
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, 0L);
+  }
+}
 
 static void configure_method(CURL *curl, HttpRequest *request) {
   curl_easy_setopt(curl, CURLOPT_POST, 0L);
@@ -42,39 +53,18 @@ static void configure_method(CURL *curl, HttpRequest *request) {
     break;
   case HTTP_POST:
     curl_easy_setopt(curl, CURLOPT_POST, 1L);
-    if (request->body && *request->body != '\0') {
-      curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE,
-                       (long)strlen(request->body));
-      curl_easy_setopt(curl, CURLOPT_COPYPOSTFIELDS, request->body);
-    } else {
-      curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "");
-      curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, 0L);
-    }
+    apply_request_body(curl, request);
     break;
   case HTTP_PUT:
     curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
-    if (request->body && *request->body != '\0') {
-      curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE,
-                       (long)strlen(request->body));
-      curl_easy_setopt(curl, CURLOPT_COPYPOSTFIELDS, request->body);
-    } else {
-      curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "");
-      curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, 0L);
-    }
+    apply_request_body(curl, request);
     break;
   case HTTP_DELETE:
     curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
     break;
   case HTTP_PATCH:
     curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PATCH");
-    if (request->body && *request->body != '\0') {
-      curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE,
-                       (long)strlen(request->body));
-      curl_easy_setopt(curl, CURLOPT_COPYPOSTFIELDS, request->body);
-    } else {
-      curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "");
-      curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, 0L);
-    }
+    apply_request_body(curl, request);
     break;
   case HTTP_HEAD:
     curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
@@ -187,74 +177,45 @@ static void extract_response_info(CURL *curl, HttpResponse *response) {
   char *content_type = NULL;
   curl_easy_getinfo(curl, CURLINFO_CONTENT_TYPE, &content_type);
 
-  if (response->content_type) {
-    free(response->content_type);
-    response->content_type = NULL;
-  }
-
-  if (content_type) {
-    response->content_type = strdup(content_type);
-  }
+  g_free(response->content_type);
+  response->content_type = (content_type != NULL) ? g_strdup(content_type) : NULL;
 
   curl_easy_getinfo(curl, CURLINFO_TOTAL_TIME, &response->total_time);
 }
 
-static char *build_query_string(HttpRequest *request) {
-  if (!request->query_params || request->query_count == 0)
+static gchar *build_query_string(HttpRequest *request) {
+  if (!request->query_params || request->query_count == 0) {
     return NULL;
-
-  size_t total_len = 2;
-  for (int i = 0; i < request->query_count; i++) {
-    total_len += strlen(request->query_params[i]) + 1;
   }
 
-  char *query = malloc(total_len);
-  if (!query)
-    return NULL;
-
-  query[0] = '?';
-  query[1] = '\0';
-
+  GString *buffer = g_string_new("?");
   for (int i = 0; i < request->query_count; i++) {
-    if (i > 0)
-      strcat(query, "&");
-    strcat(query, request->query_params[i]);
+    if (i > 0) {
+      g_string_append_c(buffer, '&');
+    }
+    g_string_append(buffer, request->query_params[i]);
   }
 
-  return query;
+  return g_string_free(buffer, FALSE);
 }
 
 HttpResponse *http_request_perform(HttpRequest *request) {
-  if (!request || !request->url)
-    return NULL;
-
-  char *query_string = build_query_string(request);
-  size_t final_url_len =
-      strlen(request->url) + (query_string ? strlen(query_string) : 0) + 1;
-
-  char *final_url = malloc(final_url_len);
-  if (!final_url) {
-    free(query_string);
+  if (!request || !request->url) {
     return NULL;
   }
 
-  if (query_string) {
-    snprintf(final_url, final_url_len, "%s%s", request->url, query_string);
-    free(query_string);
-  } else {
-    snprintf(final_url, final_url_len, "%s", request->url);
-  }
+  gchar *query_string = build_query_string(request);
+  gchar *final_url =
+      (query_string != NULL)
+          ? g_strconcat(request->url, query_string, NULL)
+          : g_strdup(request->url);
+  g_free(query_string);
 
   HttpResponse *response = http_response_create();
-  if (!response) {
-    free(final_url);
-    return NULL;
-  }
-
   CURL *curl = http_pool_acquire();
 
   if (!curl) {
-    free(final_url);
+    g_free(final_url);
     http_response_free(response);
     return NULL;
   }
@@ -273,7 +234,7 @@ HttpResponse *http_request_perform(HttpRequest *request) {
 
   http_pool_release(curl);
 
-  free(final_url);
+  g_free(final_url);
 
   return response;
 }

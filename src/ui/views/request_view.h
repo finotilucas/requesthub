@@ -23,6 +23,7 @@
 
 #pragma once
 
+#include "../../history/history.h"
 #include "../components/request_top_bar.h"
 #include "body_view.h"
 #include "headers_view.h"
@@ -37,3 +38,5 @@ RequestTopBar *request_view_get_top_bar(RequestView *self);
 ParamsView *request_view_get_params_view(RequestView *self);
 HeadersView *request_view_get_headers_view(RequestView *self);
 BodyView *request_view_get_body_view(RequestView *self);
+void request_view_load_history_entry(RequestView *self,
+                                     const HistoryEntry *entry);

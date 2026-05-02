@@ -6,11 +6,11 @@
     min-width: 50px;
 }
 
-.headers-list .query-row image {
+.kv-info-icon {
     opacity: 0.6;
 }
 
-.headers-list .query-row image:hover {
+.kv-info-icon:hover {
     opacity: 1;
 }
 
@@ -44,4 +44,98 @@
     background: rgba(255, 255, 255, 0.05);
     padding: 2px 6px;
     border-radius: 4px;
+}
+
+.history-sidebar {
+    background-color: rgba(255, 255, 255, 0.02);
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.history-list row {
+    padding: 0;
+}
+
+.history-list row:hover {
+    background-color: rgba(255, 255, 255, 0.04);
+}
+
+.history-list row:selected {
+    background-color: rgba(120, 174, 237, 0.18);
+}
+
+.history-row {
+    border-radius: 6px;
+}
+
+.history-url {
+    font-family: monospace;
+    font-size: 0.92em;
+}
+
+.history-status {
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.82em;
+    font-weight: bold;
+    min-width: 56px;
+    min-height: 18px;
+}
+
+.history-meta {
+    opacity: 0.55;
+    font-size: 0.8em;
+    font-family: monospace;
+}
+
+.history-count {
+    opacity: 0.7;
+    font-family: monospace;
+    background: rgba(255, 255, 255, 0.06);
+    padding: 2px 8px;
+    border-radius: 10px;
+    min-width: 28px;
+    min-height: 18px;
+    font-size: 0.82em;
+}
+
+.history-row-delete {
+    opacity: 0;
+    transition: opacity 150ms ease;
+    min-width: 24px;
+    min-height: 24px;
+    padding: 2px;
+}
+
+.history-list row:hover .history-row-delete,
+.history-list row:selected .history-row-delete {
+    opacity: 0.55;
+}
+
+.history-list .history-row-delete:hover {
+    opacity: 1;
+    color: #c92a2a;
+}
+
+.method-badge {
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.78em;
+    font-weight: bold;
+    color: #f8f9fa;
+    min-width: 56px;
+    min-height: 18px;
+}
+
+.method-get      { background-color: #2d6cdf; }
+.method-post     { background-color: #2f9e44; }
+.method-put      { background-color: #d97706; }
+.method-delete   { background-color: #c92a2a; }
+.method-patch    { background-color: #9333ea; }
+.method-head     { background-color: #495057; }
+.method-options  { background-color: #495057; }
+.method-unknown  { background-color: #495057; }
+
+.badge-neutral {
+    background-color: #343a40;
+    color: #f8f9fa;
 }

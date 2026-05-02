@@ -100,3 +100,47 @@ BodyView *request_view_get_body_view(RequestView *self) {
   g_return_val_if_fail(REQUEST_IS_VIEW(self), NULL);
   return self->body_view;
 }
+
+void request_view_load_history_entry(RequestView *self,
+                                     const HistoryEntry *entry) {
+  g_return_if_fail(REQUEST_IS_VIEW(self));
+  if (entry == NULL) {
+    return;
+  }
+
+  if (self->top_bar != NULL) {
+    request_top_bar_set_url(self->top_bar, entry->url);
+    request_top_bar_set_method(self->top_bar, entry->method);
+  }
+
+  if (self->body_view != NULL) {
+    body_view_clear(self->body_view);
+    if (entry->body != NULL && *entry->body != '\0') {
+      body_view_set_content(self->body_view, entry->body);
+    }
+  }
+
+  if (self->params_view != NULL) {
+    params_view_clear_all(self->params_view);
+    guint count = history_entry_query_count(entry);
+    for (guint i = 0; i < count; i++) {
+      const char *k = history_entry_query_key(entry, i);
+      const char *v = history_entry_query_value(entry, i);
+      if (k != NULL) {
+        params_view_add_pair(self->params_view, k, v != NULL ? v : "");
+      }
+    }
+  }
+
+  if (self->headers_view != NULL) {
+    headers_view_clear_all(self->headers_view);
+    guint count = history_entry_headers_count(entry);
+    for (guint i = 0; i < count; i++) {
+      const char *k = history_entry_header_key(entry, i);
+      const char *v = history_entry_header_value(entry, i);
+      if (k != NULL) {
+        headers_view_add_pair(self->headers_view, k, v != NULL ? v : "");
+      }
+    }
+  }
+}

@@ -25,7 +25,7 @@
 
 static const gchar *DEFAULT_APP_ID = "com.requesthub.app";
 static const gchar *DEFAULT_WINDOW_TITLE = "Request Hub";
-static const gint DEFAULT_WIDTH = 1024;
+static const gint DEFAULT_WIDTH = 1280;
 static const gint DEFAULT_HEIGHT = 768;
 
 AppConfig *app_config_new() {

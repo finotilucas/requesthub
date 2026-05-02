@@ -125,6 +125,19 @@ HttpMethods request_top_bar_get_method(RequestTopBar *self) {
   return (HttpMethods)gtk_drop_down_get_selected(self->method_dropdown);
 }
 
+void request_top_bar_set_url(RequestTopBar *self, const char *url) {
+  g_return_if_fail(REQUEST_IS_TOP_BAR(self));
+  gtk_editable_set_text(GTK_EDITABLE(self->url_entry), url != NULL ? url : "");
+}
+
+void request_top_bar_set_method(RequestTopBar *self, HttpMethods method) {
+  g_return_if_fail(REQUEST_IS_TOP_BAR(self));
+  if (method < HTTP_GET || method > HTTP_OPTIONS) {
+    return;
+  }
+  gtk_drop_down_set_selected(self->method_dropdown, (guint)method);
+}
+
 void request_top_bar_focus_url(RequestTopBar *self) {
     g_return_if_fail(REQUEST_IS_TOP_BAR(self));
     gtk_widget_grab_focus(GTK_WIDGET(self->url_entry));

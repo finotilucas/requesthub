@@ -32,5 +32,7 @@ G_DECLARE_FINAL_TYPE(RequestTopBar, request_top_bar, REQUEST, TOP_BAR, GtkBox)
 RequestTopBar *request_top_bar_new(void);
 const char *request_top_bar_get_url(RequestTopBar *self);
 HttpMethods request_top_bar_get_method(RequestTopBar *self);
+void request_top_bar_set_url(RequestTopBar *self, const char *url);
+void request_top_bar_set_method(RequestTopBar *self, HttpMethods method);
 void request_top_bar_set_loading(RequestTopBar *self, gboolean is_loading);
 void request_top_bar_focus_url(RequestTopBar *self);
