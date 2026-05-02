@@ -1,0 +1,68 @@
+name: build-and-test-arch
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    container:
+      image: archlinux:latest
+
+    steps:
+      - name: Install dependencies
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm \
+            base-devel \
+            git \
+            pkgconf \
+            glib2 \
+            gtk4 \
+            gtksourceview5 \
+            libxml2 \
+            yaml \
+            cjson \
+            curl \
+            libasan \
+            libubsan
+
+      - uses: actions/checkout@v4
+
+      - run: make deps-check
+      - run: make debug
+      - run: make release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: requesthub-arch
+          path: |
+            build/requesthub
+            build/release/requesthub
+
+  test:
+    runs-on: ubuntu-latest
+
+    container:
+      image: archlinux:latest
+
+    needs: build
+
+    steps:
+      - name: Install runtime dependencies
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm \
+            glib2 \
+            cjson \
+            curl
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: requesthub-arch
+
+      - run: make test
