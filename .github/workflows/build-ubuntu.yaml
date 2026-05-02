@@ -9,8 +9,7 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Install dependencies
         run: |
@@ -26,19 +25,13 @@ jobs:
             libcurl4-openssl-dev \
             libglib2.0-dev
 
-      - name: Check dependencies
-        run: make deps-check
+      - run: make deps-check
+      - run: make debug
+      - run: make release
 
-      - name: Build debug
-        run: make debug
-
-      - name: Build release
-        run: make release
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: requesthub-binaries
+          name: requesthub-ubuntu
           path: |
             build/requesthub
             build/release/requesthub
@@ -48,8 +41,7 @@ jobs:
     needs: build
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Install dependencies
         run: |
@@ -57,13 +49,16 @@ jobs:
           sudo apt install -y \
             build-essential \
             pkg-config \
-            libglib2.0-dev \
-            libcjson-dev
+            libgtk-4-dev \
+            libgtksourceview-5-dev \
+            libxml2-dev \
+            libyaml-dev \
+            libcjson-dev \
+            libcurl4-openssl-dev \
+            libglib2.0-dev
 
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
-          name: requesthub-binaries
+          name: requesthub-ubuntu
 
-      - name: Run tests
-        run: make test
+      - run: make test
