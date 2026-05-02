@@ -1,4 +1,4 @@
-name: ubuntu-build
+name: build-and-test-ubuntu
 
 on:
   push:
@@ -26,17 +26,44 @@ jobs:
             libcurl4-openssl-dev \
             libglib2.0-dev
 
-      - name: Show pkg-config
-        run: pkg-config --list-all | sort
-
-      - name: Check deps
+      - name: Check dependencies
         run: make deps-check
 
-      - name: Build (debug)
+      - name: Build debug
         run: make debug
 
-      - name: Build (release)
+      - name: Build release
         run: make release
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: requesthub-binaries
+          path: |
+            build/requesthub
+            build/release/requesthub
+
+  test:
+    runs-on: ubuntu-24.04
+    needs: build
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y \
+            build-essential \
+            pkg-config \
+            libglib2.0-dev \
+            libcjson-dev
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: requesthub-binaries
 
       - name: Run tests
         run: make test

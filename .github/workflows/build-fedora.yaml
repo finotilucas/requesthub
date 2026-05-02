@@ -1,0 +1,78 @@
+name: build-and-test-fedora
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    container:
+      image: fedora:40
+
+    steps:
+      - name: Install dependencies
+        run: |
+          dnf install -y \
+            gcc \
+            make \
+            pkgconf-pkg-config \
+            git \
+            glib2-devel \
+            gtk4-devel \
+            gtksourceview5-devel \
+            libxml2-devel \
+            libyaml-devel \
+            cjson-devel \
+            libcurl-devel
+
+      - name: Checkout
+        run: git clone https://github.com/${{ github.repository }} .
+
+      - name: Check dependencies
+        run: make deps-check
+
+      - name: Build debug
+        run: make debug
+
+      - name: Build release
+        run: make release
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: requesthub-fedora-build
+          path: |
+            build/requesthub
+            build/release/requesthub
+
+  test:
+    runs-on: ubuntu-latest
+    needs: build
+
+    container:
+      image: fedora:40
+
+    steps:
+      - name: Install dependencies
+        run: |
+          dnf install -y \
+            gcc \
+            make \
+            pkgconf-pkg-config \
+            git \
+            glib2-devel \
+            cjson-devel \
+            libcurl-devel
+
+      - name: Checkout
+        run: git clone https://github.com/${{ github.repository }} .
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: requesthub-fedora-build
+
+      - name: Run tests
+        run: make test
