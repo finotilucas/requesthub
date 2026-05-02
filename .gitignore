@@ -65,3 +65,4 @@ build
 obj
 
 compile_commands*
+src/ui/styles/styles.gresource.c

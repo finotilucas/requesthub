@@ -11,21 +11,6 @@ else
     SANITIZE   := -fsanitize=address -fsanitize=undefined
 endif
 
-CJSON_PKG_CFLAGS := $(shell pkg-config --cflags libcjson 2>/dev/null || true)
-CJSON_PKG_LIBS   := $(shell pkg-config --libs   libcjson 2>/dev/null || true)
-ifeq ($(CJSON_PKG_CFLAGS),)
-    ifeq ($(WINDOWS),1)
-        CJSON_CFLAGS :=
-        CJSON_LIBS   := -lcjson
-    else
-        CJSON_CFLAGS := -I/usr/include/cjson
-        CJSON_LIBS   := -lcjson
-    endif
-else
-    CJSON_CFLAGS := $(CJSON_PKG_CFLAGS)
-    CJSON_LIBS   := $(CJSON_PKG_LIBS)
-endif
-
 GTK_CFLAGS        := $(shell pkg-config --cflags gtk4)
 GTK_LIBS          := $(shell pkg-config --libs gtk4)
 SOURCEVIEW_CFLAGS := $(shell pkg-config --cflags gtksourceview-5)
@@ -36,6 +21,9 @@ LIBXML2_LIBS      := $(shell pkg-config --libs libxml-2.0 2>/dev/null || echo "-
 
 YAML_CFLAGS       := $(shell pkg-config --cflags yaml-0.1 2>/dev/null || true)
 YAML_LIBS         := $(shell pkg-config --libs yaml-0.1 2>/dev/null || echo "-lyaml")
+
+CJSON_CFLAGS      := $(shell pkg-config --cflags libcjson 2>/dev/null || true)
+CJSON_LIBS        := $(shell pkg-config --libs libcjson 2>/dev/null || echo "-lcjson")
 
 COMMON_CFLAGS := -Wall -Wextra -Werror -std=gnu11 -Iinclude \
                  $(GTK_CFLAGS) \
@@ -68,8 +56,11 @@ SRC_DIR         := src
 OBJ_DIR         := obj
 BUILD_DIR       := build
 
+GRESOURCE_XML   := $(SRC_DIR)/ui/styles/styles.gresource.xml
+GRESOURCE_C     := $(SRC_DIR)/ui/styles/styles.gresource.c
+GRESOURCE_DEPS  := $(shell glib-compile-resources --sourcedir=$(SRC_DIR)/ui/styles --generate-dependencies $(GRESOURCE_XML) 2>/dev/null)
 
-SOURCES         := $(shell find $(SRC_DIR) -name '*.c') main.c
+SOURCES         := $(filter-out $(GRESOURCE_C),$(shell find $(SRC_DIR) -name '*.c')) $(GRESOURCE_C) main.c
 
 DEBUG_OBJ_DIR   := $(OBJ_DIR)/debug
 RELEASE_OBJ_DIR := $(OBJ_DIR)/release
@@ -103,6 +94,10 @@ $(RELEASE_OBJ_DIR)/%.o: %.c
 	@mkdir -p $(dir $@)
 	@echo "Compiling (release): $<"
 	$(CC) $(CFLAGS_RELEASE) -c $< -o $@
+
+$(GRESOURCE_C): $(GRESOURCE_XML) $(GRESOURCE_DEPS)
+	@echo "Generating GResource: $@"
+	glib-compile-resources --target=$@ --generate-source --sourcedir=$(SRC_DIR)/ui/styles $(GRESOURCE_XML)
 
 GLIB_TEST_CFLAGS := $(shell pkg-config --cflags glib-2.0)
 GLIB_TEST_LIBS   := $(shell pkg-config --libs   glib-2.0)
@@ -147,7 +142,7 @@ deps-check:
 	@echo "Main dependencies OK"
 
 clean:
-	rm -rf $(OBJ_DIR) $(BUILD_DIR)
+	rm -rf $(OBJ_DIR) $(BUILD_DIR) $(GRESOURCE_C)
 
 run: debug
 	./$(TARGET_DEBUG)

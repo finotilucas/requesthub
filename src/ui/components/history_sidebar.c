@@ -25,9 +25,12 @@
 
 #include "../../http/methods.h"
 #include "../../utils/format_response.h"
+#include "../../utils/format_time.h"
 
 #define HISTORY_ENTRY_DATA_KEY "history-entry-ptr"
+#define HISTORY_TIME_AGO_LABEL_KEY "history-time-ago-label"
 #define HISTORY_MAX_ENTRIES 200
+#define HISTORY_SAVE_DEBOUNCE_SECONDS 2
 
 struct _HistorySidebar {
   GtkBox parent_instance;
@@ -35,12 +38,16 @@ struct _HistorySidebar {
   GtkListBox *list_box;
   GtkStack *stack;
   GtkLabel *count_label;
+  guint refresh_source_id;
+  guint pending_save_source_id;
 };
 
 G_DEFINE_TYPE(HistorySidebar, history_sidebar, GTK_TYPE_BOX)
 
 enum { ENTRY_SELECTED, N_SIGNALS };
 static guint signals[N_SIGNALS];
+
+static void schedule_save(HistorySidebar *self);
 
 static const char *method_css_class(HttpMethods method) {
   switch (method) {
@@ -73,29 +80,6 @@ static const char *status_css_class(glong status) {
     return "badge-error";
   }
   return "badge-neutral";
-}
-
-static gchar *format_relative_time(gint64 timestamp_ms) {
-  if (timestamp_ms <= 0) {
-    return g_strdup("");
-  }
-
-  gint64 now_ms = g_get_real_time() / 1000;
-  gint64 diff_s = (now_ms - timestamp_ms) / 1000;
-  if (diff_s < 0) {
-    diff_s = 0;
-  }
-
-  if (diff_s < 60) {
-    return g_strdup_printf("%lds ago", (long)diff_s);
-  }
-  if (diff_s < 3600) {
-    return g_strdup_printf("%ldm ago", (long)(diff_s / 60));
-  }
-  if (diff_s < 86400) {
-    return g_strdup_printf("%ldh ago", (long)(diff_s / 3600));
-  }
-  return g_strdup_printf("%ldd ago", (long)(diff_s / 86400));
 }
 
 static void update_count_label(HistorySidebar *self) {
@@ -145,7 +129,7 @@ static void on_row_delete_clicked(GtkButton *btn, gpointer user_data) {
 
   gtk_list_box_remove(self->list_box, row_container);
   history_store_remove(self->store, entry);
-  history_store_save(self->store);
+  schedule_save(self);
   update_count_label(self);
 }
 
@@ -225,7 +209,93 @@ static GtkWidget *build_row_widget(HistorySidebar *self, HistoryEntry *entry) {
   gtk_box_append(GTK_BOX(outer), bottom);
 
   g_object_set_data(G_OBJECT(outer), HISTORY_ENTRY_DATA_KEY, entry);
+  g_object_set_data(G_OBJECT(outer), HISTORY_TIME_AGO_LABEL_KEY, time_ago_label);
   return outer;
+}
+
+static gboolean on_refresh_tick(gpointer user_data);
+
+static gboolean on_pending_save(gpointer user_data) {
+  HistorySidebar *self = HISTORY_SIDEBAR(user_data);
+  self->pending_save_source_id = 0;
+  if (self->store != NULL) {
+    history_store_save(self->store);
+  }
+  return G_SOURCE_REMOVE;
+}
+
+static void schedule_save(HistorySidebar *self) {
+  if (self->pending_save_source_id != 0) {
+    return;
+  }
+  self->pending_save_source_id =
+      g_timeout_add_seconds(HISTORY_SAVE_DEBOUNCE_SECONDS, on_pending_save, self);
+}
+
+static void schedule_refresh(HistorySidebar *self, guint seconds) {
+  if (self->refresh_source_id != 0) {
+    g_source_remove(self->refresh_source_id);
+    self->refresh_source_id = 0;
+  }
+  self->refresh_source_id =
+      g_timeout_add_seconds(seconds, on_refresh_tick, self);
+}
+
+static gboolean on_refresh_tick(gpointer user_data) {
+  HistorySidebar *self = HISTORY_SIDEBAR(user_data);
+  self->refresh_source_id = 0;
+
+  gboolean mapped = gtk_widget_get_mapped(GTK_WIDGET(self));
+  gint64 now_ms = g_get_real_time() / 1000;
+  gint64 min_age_s = G_MAXINT64;
+
+  GtkWidget *row = gtk_widget_get_first_child(GTK_WIDGET(self->list_box));
+  while (row != NULL) {
+    if (GTK_IS_LIST_BOX_ROW(row)) {
+      GtkWidget *outer = gtk_list_box_row_get_child(GTK_LIST_BOX_ROW(row));
+      if (outer != NULL) {
+        HistoryEntry *entry =
+            g_object_get_data(G_OBJECT(outer), HISTORY_ENTRY_DATA_KEY);
+        GtkWidget *time_label =
+            g_object_get_data(G_OBJECT(outer), HISTORY_TIME_AGO_LABEL_KEY);
+        if (entry != NULL && entry->timestamp_ms > 0) {
+          gint64 age_s = (now_ms - entry->timestamp_ms) / 1000;
+          if (age_s < 0) {
+            age_s = 0;
+          }
+          if (age_s < min_age_s) {
+            min_age_s = age_s;
+          }
+
+          if (mapped && GTK_IS_LABEL(time_label)) {
+            gchar *new_text = format_relative_time(entry->timestamp_ms);
+            const char *old_text = gtk_label_get_text(GTK_LABEL(time_label));
+            if (g_strcmp0(old_text, new_text) != 0) {
+              gtk_label_set_text(GTK_LABEL(time_label), new_text);
+            }
+            g_free(new_text);
+          }
+        }
+      }
+    }
+    row = gtk_widget_get_next_sibling(row);
+  }
+
+  guint next_s;
+  if (min_age_s == G_MAXINT64) {
+    next_s = 60;
+  } else if (min_age_s < 60) {
+    next_s = 1;
+  } else if (min_age_s < 3600) {
+    next_s = 60;
+  } else if (min_age_s < 86400) {
+    next_s = 3600;
+  } else {
+    next_s = 86400;
+  }
+
+  schedule_refresh(self, next_s);
+  return G_SOURCE_REMOVE;
 }
 
 static void prepend_row_for_entry(HistorySidebar *self, HistoryEntry *entry) {
@@ -308,8 +378,21 @@ static void on_clear_clicked(GtkButton *btn, gpointer user_data) {
     gtk_list_box_remove(self->list_box, child);
   }
 
-  history_store_save(self->store);
+  schedule_save(self);
   update_count_label(self);
+}
+
+static void history_sidebar_dispose(GObject *object) {
+  HistorySidebar *self = HISTORY_SIDEBAR(object);
+  if (self->refresh_source_id != 0) {
+    g_source_remove(self->refresh_source_id);
+    self->refresh_source_id = 0;
+  }
+  if (self->pending_save_source_id != 0) {
+    g_source_remove(self->pending_save_source_id);
+    self->pending_save_source_id = 0;
+  }
+  G_OBJECT_CLASS(history_sidebar_parent_class)->dispose(object);
 }
 
 static void history_sidebar_finalize(GObject *object) {
@@ -323,6 +406,7 @@ static void history_sidebar_finalize(GObject *object) {
 }
 
 static void history_sidebar_class_init(HistorySidebarClass *klass) {
+  G_OBJECT_CLASS(klass)->dispose = history_sidebar_dispose;
   G_OBJECT_CLASS(klass)->finalize = history_sidebar_finalize;
 
   signals[ENTRY_SELECTED] = g_signal_new(
@@ -344,7 +428,7 @@ static void history_sidebar_init(HistorySidebar *self) {
   gtk_widget_set_margin_top(header, 12);
   gtk_widget_set_margin_bottom(header, 8);
 
-  GtkWidget *title = gtk_label_new("History");
+  GtkWidget *title = gtk_label_new("Requests");
   gtk_label_set_xalign(GTK_LABEL(title), 0.0);
   gtk_widget_add_css_class(title, "title-4");
   gtk_widget_set_hexpand(title, TRUE);
@@ -403,6 +487,8 @@ static void history_sidebar_init(HistorySidebar *self) {
   } else {
     update_count_label(self);
   }
+
+  schedule_refresh(self, 1);
 }
 
 HistorySidebar *history_sidebar_new(void) {
@@ -444,8 +530,15 @@ void history_sidebar_record(HistorySidebar *self, HistoryEntry *entry) {
     }
   }
 
-  history_store_save(self->store);
+  schedule_save(self);
   update_count_label(self);
+
+  GtkWidget *first = gtk_widget_get_first_child(GTK_WIDGET(self->list_box));
+  if (GTK_IS_LIST_BOX_ROW(first)) {
+    gtk_list_box_select_row(self->list_box, GTK_LIST_BOX_ROW(first));
+  }
+
+  schedule_refresh(self, 1);
 }
 
 HistoryStore *history_sidebar_get_store(HistorySidebar *self) {

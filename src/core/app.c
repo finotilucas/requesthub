@@ -42,7 +42,20 @@
 
 #define INITIAL_REQUEST_PANE_WIDTH 450
 
-void async_request_data_free(AsyncRequestData *data) {
+typedef struct {
+  ResponseView *response_view;
+  RequestView *request_view;
+  HistorySidebar *history_sidebar;
+} AppContext;
+
+typedef struct {
+  HttpRequest *request;
+  RequestTopBar *bar;
+  AppContext *ctx;
+  HistoryEntry *history_entry;
+} AsyncRequestData;
+
+static void async_request_data_free(AsyncRequestData *data) {
   if (data == NULL) {
     return;
   }
@@ -141,8 +154,9 @@ static void on_history_entry_selected(HistorySidebar *sidebar,
   }
 }
 
-void request_worker_thread(GTask *task, gpointer source_obj, gpointer task_data,
-                           GCancellable *cancellable) {
+static void request_worker_thread(GTask *task, gpointer source_obj,
+                                  gpointer task_data,
+                                  GCancellable *cancellable) {
   (void)cancellable;
   (void)source_obj;
   AsyncRequestData *rd = (AsyncRequestData *)task_data;
@@ -154,8 +168,8 @@ void request_worker_thread(GTask *task, gpointer source_obj, gpointer task_data,
   http_request_free(rd->request);
 }
 
-void on_request_finished(GObject *source, GAsyncResult *res,
-                         gpointer user_data) {
+static void on_request_finished(GObject *source, GAsyncResult *res,
+                                gpointer user_data) {
   (void)source;
   AsyncRequestData *rd = (AsyncRequestData *)user_data;
   HttpResponse *resp = g_task_propagate_pointer(G_TASK(res), NULL);
@@ -173,7 +187,7 @@ void on_request_finished(GObject *source, GAsyncResult *res,
   async_request_data_free(rd);
 }
 
-void on_send_clicked(RequestTopBar *bar, gpointer user_data) {
+static void on_send_clicked(RequestTopBar *bar, gpointer user_data) {
   AppContext *ctx = (AppContext *)user_data;
 
   const char *url = request_top_bar_get_url(bar);
@@ -184,8 +198,8 @@ void on_send_clicked(RequestTopBar *bar, gpointer user_data) {
     return;
   }
 
-  HistoryEntry *entry = build_history_entry_from_views(ctx->request_view, url,
-                                                       method);
+  HistoryEntry *entry =
+      build_history_entry_from_views(ctx->request_view, url, method);
 
   ParamsView *pv = request_view_get_params_view(ctx->request_view);
   if (pv)
@@ -213,8 +227,8 @@ void on_send_clicked(RequestTopBar *bar, gpointer user_data) {
   g_object_unref(task);
 }
 
-void on_shortcut_send_wrapper(GSimpleAction *action, GVariant *parameter,
-                              gpointer user_data) {
+static void on_shortcut_send_wrapper(GSimpleAction *action, GVariant *parameter,
+                                     gpointer user_data) {
   (void)action;
   (void)parameter;
 
@@ -227,8 +241,9 @@ void on_shortcut_send_wrapper(GSimpleAction *action, GVariant *parameter,
   }
 }
 
-void on_shortcut_focus_url_wrapper(GSimpleAction *action, GVariant *parameter,
-                                   gpointer user_data) {
+static void on_shortcut_focus_url_wrapper(GSimpleAction *action,
+                                          GVariant *parameter,
+                                          gpointer user_data) {
   (void)action;
   (void)parameter;
 
@@ -241,31 +256,23 @@ void on_shortcut_focus_url_wrapper(GSimpleAction *action, GVariant *parameter,
   }
 }
 
-void on_activate(GtkApplication *app, gpointer user_data) {
-  AppConfig *cfg = (AppConfig *)user_data;
-
+static void apply_global_theming(void) {
   load_css();
   watch_css_file("src/ui/styles/app.css");
 
   GtkSettings *settings = gtk_settings_get_default();
-
   g_object_set(settings, "gtk-theme-name", "Adwaita-dark",
                "gtk-application-prefer-dark-theme", TRUE, NULL);
+}
 
-  GtkWidget *window = gtk_application_window_new(app);
-  app_config_apply_to_window(cfg, GTK_WINDOW(window));
-  app_config_free(cfg);
-
+static GtkWidget *build_main_layout(RequestView *request_view,
+                                    ResponseView *response_view,
+                                    HistorySidebar *history_sidebar) {
   GtkWidget *inner_paned = gtk_paned_new(GTK_ORIENTATION_HORIZONTAL);
-  RequestView *request_view = request_view_new();
-  ResponseView *response_view = response_view_new();
-
   gtk_paned_set_start_child(GTK_PANED(inner_paned), GTK_WIDGET(request_view));
   gtk_paned_set_end_child(GTK_PANED(inner_paned), GTK_WIDGET(response_view));
   gtk_paned_set_position(GTK_PANED(inner_paned), INITIAL_REQUEST_PANE_WIDTH);
   gtk_paned_set_shrink_end_child(GTK_PANED(inner_paned), FALSE);
-
-  HistorySidebar *history_sidebar = history_sidebar_new();
 
   GtkWidget *outer_paned = gtk_paned_new(GTK_ORIENTATION_HORIZONTAL);
   gtk_paned_set_start_child(GTK_PANED(outer_paned),
@@ -275,26 +282,52 @@ void on_activate(GtkApplication *app, gpointer user_data) {
   gtk_paned_set_resize_start_child(GTK_PANED(outer_paned), FALSE);
   gtk_paned_set_shrink_start_child(GTK_PANED(outer_paned), FALSE);
 
-  AppContext *ctx = g_new0(AppContext, 1);
-  ctx->response_view = response_view;
-  ctx->request_view = request_view;
-  ctx->history_sidebar = history_sidebar;
+  return outer_paned;
+}
 
-  g_signal_connect(request_view_get_top_bar(request_view), "send-clicked",
+static void wire_app_signals(GtkWidget *window, AppContext *ctx) {
+  g_signal_connect(request_view_get_top_bar(ctx->request_view), "send-clicked",
                    G_CALLBACK(on_send_clicked), ctx);
-  g_signal_connect(history_sidebar, "entry-selected",
+  g_signal_connect(ctx->history_sidebar, "entry-selected",
                    G_CALLBACK(on_history_entry_selected), ctx);
 
   g_object_set_data_full(G_OBJECT(window), "app-ctx", ctx, g_free);
+}
 
+static void install_shortcuts(GtkApplication *app,
+                              GtkApplicationWindow *window) {
   static const ShortcutEntry app_shortcuts[] = {
       {"send_request", "<Control>Return", on_shortcut_send_wrapper},
       {"focus_url", "<Control>l", on_shortcut_focus_url_wrapper},
   };
 
-  setup_application_shortcuts(app, GTK_APPLICATION_WINDOW(window),
-                              app_shortcuts, G_N_ELEMENTS(app_shortcuts));
+  setup_application_shortcuts(app, window, app_shortcuts,
+                              G_N_ELEMENTS(app_shortcuts));
+}
 
-  gtk_window_set_child(GTK_WINDOW(window), outer_paned);
+void on_activate(GtkApplication *app, gpointer user_data) {
+  AppConfig *cfg = (AppConfig *)user_data;
+
+  apply_global_theming();
+
+  GtkWidget *window = gtk_application_window_new(app);
+  app_config_apply_to_window(cfg, GTK_WINDOW(window));
+
+  RequestView *request_view = request_view_new();
+  ResponseView *response_view = response_view_new();
+  HistorySidebar *history_sidebar = history_sidebar_new();
+
+  GtkWidget *layout =
+      build_main_layout(request_view, response_view, history_sidebar);
+
+  AppContext *ctx = g_new0(AppContext, 1);
+  ctx->response_view = response_view;
+  ctx->request_view = request_view;
+  ctx->history_sidebar = history_sidebar;
+
+  wire_app_signals(window, ctx);
+  install_shortcuts(app, GTK_APPLICATION_WINDOW(window));
+
+  gtk_window_set_child(GTK_WINDOW(window), layout);
   gtk_window_present(GTK_WINDOW(window));
 }

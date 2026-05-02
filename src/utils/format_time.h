@@ -21,11 +21,11 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#ifndef APP_H
-#define APP_H
+#ifndef FORMAT_TIME_H
+#define FORMAT_TIME_H
 
 #include <gtk/gtk.h>
 
-void on_activate(GtkApplication *app, gpointer user_data);
+gchar *format_relative_time(gint64 timestamp_ms);
 
 #endif

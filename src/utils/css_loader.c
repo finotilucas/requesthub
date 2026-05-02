@@ -23,23 +23,29 @@
 
 #include <gtk/gtk.h>
 
+#define APP_CSS_RESOURCE_PATH "/com/requesthub/app/app.css"
+#define APP_CSS_DEV_PATH "src/ui/styles/app.css"
+
 static GtkCssProvider *css_provider = NULL;
 
 void load_css(void) {
   if (!css_provider)
     css_provider = gtk_css_provider_new();
 
-  GFile *file = g_file_new_for_path("src/ui/styles/app.css");
-
+#ifdef NDEBUG
+  gtk_css_provider_load_from_resource(css_provider, APP_CSS_RESOURCE_PATH);
+#else
+  GFile *file = g_file_new_for_path(APP_CSS_DEV_PATH);
   gtk_css_provider_load_from_file(css_provider, file);
+  g_object_unref(file);
+#endif
 
   gtk_style_context_add_provider_for_display(
       gdk_display_get_default(), GTK_STYLE_PROVIDER(css_provider),
       GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
-
-  g_object_unref(file);
 }
 
+#ifndef NDEBUG
 static void css_file_changed(GFileMonitor *monitor, GFile *file,
                              GFile *other_file, GFileMonitorEvent event_type,
                              gpointer user_data) {
@@ -63,3 +69,6 @@ void watch_css_file(const char *path) {
   g_signal_connect(monitor, "changed", G_CALLBACK(css_file_changed), NULL);
   g_object_unref(file);
 }
+#else
+void watch_css_file(const char *path) { (void)path; }
+#endif

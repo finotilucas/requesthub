@@ -21,11 +21,27 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#ifndef APP_H
-#define APP_H
+#include "format_time.h"
 
-#include <gtk/gtk.h>
+gchar *format_relative_time(gint64 timestamp_ms) {
+  if (timestamp_ms <= 0) {
+    return g_strdup("");
+  }
 
-void on_activate(GtkApplication *app, gpointer user_data);
+  gint64 now_ms = g_get_real_time() / 1000;
+  gint64 diff_s = (now_ms - timestamp_ms) / 1000;
+  if (diff_s < 0) {
+    diff_s = 0;
+  }
 
-#endif
+  if (diff_s < 60) {
+    return g_strdup_printf("%lds ago", (long)diff_s);
+  }
+  if (diff_s < 3600) {
+    return g_strdup_printf("%ldm ago", (long)(diff_s / 60));
+  }
+  if (diff_s < 86400) {
+    return g_strdup_printf("%ldh ago", (long)(diff_s / 3600));
+  }
+  return g_strdup_printf("%ldd ago", (long)(diff_s / 86400));
+}
