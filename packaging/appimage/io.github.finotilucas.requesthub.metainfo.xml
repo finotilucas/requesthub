@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<component type="desktop-application">
+  <id>io.github.finotilucas.requesthub</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-2.0-or-later</project_license>
+  <name>RequestHub</name>
+  <summary>Lightning-fast native HTTP client</summary>
+  <description>
+    <p>
+      RequestHub is a high-performance HTTP client written entirely in C.
+      It provides a lightweight, native alternative to Electron-based API
+      clients, with connection pooling,
+      HTTP/2 multiplexing, and request history persistence.
+    </p>
+    <p>Features:</p>
+    <ul>
+      <li>Keep-alive connections for fast consecutive requests</li>
+      <li>HTTP/2 support with multiplexing</li>
+      <li>SSL/TLS verification enabled by default</li>
+      <li>GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS methods</li>
+      <li>Custom headers and bearer token authentication</li>
+      <li>Local-first request history with one-click replay</li>
+    </ul>
+  </description>
+  <launchable
+        type="desktop-id"
+    >io.github.finotilucas.requesthub.desktop</launchable>
+  <url type="homepage">https://github.com/FinotiLucas/requesthub-c</url>
+  <url
+        type="bugtracker"
+    >https://github.com/FinotiLucas/requesthub-c/issues</url>
+  <developer id="io.github.finotilucas">
+    <name>Lucas Finoti</name>
+  </developer>
+  <content_rating type="oars-1.1" />
+  <categories>
+    <category>Development</category>
+    <category>Network</category>
+  </categories>
+  <releases>
+    <release version="0.1.0" date="2026-05-23" />
+  </releases>
+</component>

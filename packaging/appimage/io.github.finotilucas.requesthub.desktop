@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=RequestHub
+GenericName=HTTP Client
+Comment=Lightning-fast native HTTP client written in C
+Exec=requesthub %U
+Icon=io.github.finotilucas.requesthub
+Categories=Development;Network;WebDevelopment;
+Keywords=HTTP;REST;API;Client;cURL;
+StartupNotify=true
+StartupWMClass=requesthub
+Terminal=false
