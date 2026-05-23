@@ -39,8 +39,11 @@ COMMON_CFLAGS := -Wall -Wextra -Werror -std=gnu11 -Iinclude \
                  $(LIBXML2_CFLAGS) \
                  $(YAML_CFLAGS)
 
+RELEASE_MARCH ?= native
+RELEASE_MTUNE ?= native
+
 CFLAGS_DEBUG   := -g $(SANITIZE) $(COMMON_CFLAGS)
-CFLAGS_RELEASE := -O2 -DNDEBUG -march=native $(COMMON_CFLAGS)
+CFLAGS_RELEASE := -O2 -DNDEBUG -march=$(RELEASE_MARCH) -mtune=$(RELEASE_MTUNE) $(COMMON_CFLAGS)
 
 ifeq ($(WINDOWS),1)
     EXTRA_GIO_LIBS :=
@@ -185,7 +188,7 @@ $(TEST_HTTP_PERFORM_TARGET): $(TEST_HTTP_PERFORM_OBJECTS)
 test: $(TEST_TARGETS)
 	@for t in $(TEST_TARGETS); do echo "==> $$t"; $$t || exit $$?; done
 
-.PHONY: all debug release clean run run-release rebuild deps-check test
+.PHONY: all debug release clean run run-release rebuild deps-check test appimage appimage-clean
 
 deps-check:
 	@echo "Checking dependencies..."
@@ -199,6 +202,16 @@ deps-check:
 
 clean:
 	rm -rf $(OBJ_DIR) $(BUILD_DIR) $(GRESOURCE_C)
+
+GIT_VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+VERSION ?= $(GIT_VERSION)
+
+appimage:
+	@VERSION=$(VERSION) RELEASE_MARCH=x86-64 RELEASE_MTUNE=generic \
+		bash packaging/appimage/build-appimage.sh
+
+appimage-clean:
+	rm -rf $(BUILD_DIR)/AppDir $(BUILD_DIR)/appimage-tools $(BUILD_DIR)/RequestHub-*.AppImage
 
 run: debug
 	./$(TARGET_DEBUG)
