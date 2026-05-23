@@ -1,139 +1,191 @@
 # RequestHub
 
-[![License: GPL v2+](https://img.shields.io/badge/License-GPL%20v2+-blue.svg)](https://www.gnu.org/licenses/gpl-2.0)
-[![C Standard](https://img.shields.io/badge/C-C11-blue.svg)](<https://en.wikipedia.org/wiki/C11_(C_standard_revision)>)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
+A native HTTP client for Linux, written in C against GTK 4 and libcurl.
+RequestHub provides the request/response workflow familiar from tools like
+Postman or Insomnia without the JavaScript runtime, packaged as a small
+native binary that integrates with the host desktop.
 
-A lightning-fast, native HTTP client written entirely in C. RequestHub provides a lightweight alternative to Electron-based API clients like Postman and Insomnia, delivering exceptional performance.
+## Status
 
-## Performance
+RequestHub is pre-1.0. The on-disk history format and the public command-line
+surface are subject to change between releases until the first tagged
+version. See [Roadmap](#roadmap) for tracked work.
 
-RequestHub leverages advanced connection pooling and HTTP/2 to achieve remarkable speed:
+## Overview
 
-- **First request:** ~495ms (cold start with DNS, TCP, SSL handshake)
-- **Subsequent requests:** ~12ms (41x faster with connection reuse)
-- **3x faster** than Insomnia for consecutive requests
-- **50% faster** than Postman for consecutive requests
-- **Zero overhead** - no JavaScript runtime, no Electron bloat
+The implementation is built around a few explicit choices:
 
-_Tests performed on the same network conditions_
+- A long-lived libcurl connection pool keeps TCP, TLS and HTTP/2 state hot
+  across requests issued in the same session.
+- All UI is rendered through native GTK 4 widgets, with GtkSourceView 5
+  providing syntax-highlighted request/response editing.
+- Persistent state is written under `$XDG_DATA_HOME/requesthub/` in
+  human-readable JSON, with conservative file permissions and explicit
+  retention bounds.
+
+Supported platforms: Linux on `x86_64`. Both X11 and Wayland sessions are
+supported through GTK.
 
 ## Features
 
-### Core Functionality
+- HTTP/1.1 and HTTP/2 with multiplexing and keep-alive reuse
+- `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, `OPTIONS`
+- Custom headers, bearer-token authentication, percent-encoded query
+  parameters
+- Request bodies for `POST`/`PUT`/`PATCH` with syntax-highlighted editing
+  for JSON, XML and YAML
+- TLS verification on by default; configurable timeouts and redirect policy
+- Per-request response metadata (status, headers, timing, transferred bytes)
+- Local request history with one-click replay, deduplication and per-entry
+  deletion
 
-- **High-performance HTTP client**
-- **Keep-alive connections** for lightning-fast consecutive requests
-- **HTTP/2 support** with multiplexing
-- **SSL/TLS verification** enabled by default
-- **Multiple HTTP methods** (GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS)
-- **Custom headers** and bearer token authentication
-- **Request body** support for POST/PUT/PATCH
-- **Query parameter** encoding
-- **Configurable timeouts** and redirects
-- **Response metadata** (status, headers, timing)
+## Build dependencies
 
-### Request History
+All dependencies are resolved through `pkg-config`. RequestHub requires:
 
-- **Local-first sidebar** showing recent requests with method, URL, status, duration, size and relative timestamp
-- **One-click replay**: click an entry to restore method, URL, body, headers and query params into the editor and re-render the cached response
-- **Smart deduplication**: re-running the same URL+method updates the existing entry and bumps it to the top instead of cluttering the list
-- **Per-entry deletion** plus full-history clear from the sidebar header
-- **Persistence** at `~/.local/share/requesthub/history.json` (XDG data dir) with directory mode `0700` and file mode `0600`, written atomically
-- **Bounded** at 200 entries (oldest evicted automatically) and capped at 512 KB per cached response body
-- **Authorization headers are stripped** before persistence; binary / non-UTF-8 response bodies are not cached
+| Component       | Minimum | Notes                                  |
+| --------------- | ------- | -------------------------------------- |
+| GCC or Clang    | C11     | built with `-std=gnu11`                |
+| GTK             | 4.0     | required                               |
+| GtkSourceView   | 5.0     | required                               |
+| GLib            | 2.76    | used transitively                      |
+| libcurl         | 7.78    | HTTP/2 must be enabled at build time   |
+| libxml2         | 2.9     | XML response parsing                   |
+| libyaml         | 0.2     | YAML response parsing                  |
+| cJSON           | 1.7     | JSON parsing                           |
 
-## Known Limitations
+Examples of installing the development packages:
 
-- Pool size is fixed at compile time
-- No built-in retry logic
-- No automatic rate limiting
-- Bearer tokens stored in plaintext memory
-- Request and cached response history is stored in plaintext JSON on disk (file is `0600`, but no encryption-at-rest). Cookies, custom auth headers (`X-API-Key`, etc.) and login/response bodies are persisted as-is — only `Authorization` is filtered. A future release may use `libsecret` to encrypt the history file.
+```sh
+# Debian / Ubuntu
+apt install build-essential pkg-config libgtk-4-dev libgtksourceview-5-dev \
+            libcurl4-openssl-dev libxml2-dev libyaml-dev libcjson-dev
+
+# Arch Linux
+pacman -S base-devel gtk4 gtksourceview5 curl libxml2 libyaml cjson
+
+# Void Linux
+xbps-install -S base-devel pkg-config gtk4-devel gtksourceview5-devel \
+                libcurl-devel libxml2-devel libyaml-devel cjson-devel
+
+# Fedora
+dnf install gcc make pkgconf-pkg-config gtk4-devel gtksourceview5-devel \
+            libcurl-devel libxml2-devel libyaml-devel cjson-devel
+```
+
+You can verify that the toolchain sees every dependency with:
+
+```sh
+make deps-check
+```
+
+## Building from source
+
+```sh
+make                # debug build at build/requesthub
+make release        # optimised build at build/release/requesthub
+make test           # GLib-based unit tests
+make clean          # remove obj/ and build/
+```
+
+The debug build is compiled with `-g` and, when supported by the toolchain,
+AddressSanitizer and UndefinedBehaviorSanitizer. `make run` and
+`make run-release` build and launch the corresponding binary.
+
+### AppImage
+
+A self-contained, distributable AppImage can be produced with:
+
+```sh
+make appimage                       # build/RequestHub-<version>-x86_64.AppImage
+make appimage VERSION=0.1.0         # override the version string
+```
+
+The version is otherwise derived from `git describe --tags --always --dirty`.
+
+The release binary inside the AppImage is compiled with
+`-march=x86-64 -mtune=generic`.
+Override the baseline for broader hardware support:
+
+```sh
+make appimage RELEASE_MARCH=x86-64-v3   # Intel Haswell / AMD Zen and newer
+make appimage RELEASE_MARCH=x86-64-v2   # Nehalem / Bulldozer and newer
+```
+
+The packaging entry point is `packaging/appimage/build-appimage.sh`. It
+fetches `linuxdeploy` and its GTK plugin into `build/appimage-tools/` on
+first run and reuses them on subsequent builds.
+
+## Configuration and data
+
+RequestHub follows the XDG Base Directory Specification:
+
+| Path                                       | Purpose                              |
+| ------------------------------------------ | ------------------------------------ |
+| `$XDG_DATA_HOME/requesthub/history.json`   | Request history (file mode `0600`)   |
+
+The history file is written atomically. It is capped at 200 entries with a
+512 KB upper bound per cached response body; the oldest entry is evicted
+when the bound is reached. The `Authorization` header is stripped before
+persistence, and binary or non-UTF-8 response bodies are not cached.
+
+## Security considerations
+
+- Bearer tokens are held as plaintext in process memory for the lifetime of
+  the request editor. There is no `mlock`/secure-memory layer.
+- The on-disk history file is mode `0600` but is **not encrypted at rest**.
+  Cookies, custom authentication headers (`X-API-Key`, etc.) and request
+  bodies are persisted as written; only `Authorization` is filtered.
+- `CURLOPT_SSL_VERIFYPEER` and `CURLOPT_SSL_VERIFYHOST` are enabled by
+  default and are not exposed as a UI toggle.
+
+History encryption via the system keyring (`libsecret`) and configurable
+redaction rules are tracked in the roadmap.
 
 ## Roadmap
 
-- [x] Implement request/response history
-- [ ] Add request collections
-- [ ] Environment variables support
-- [ ] Encrypt history file via system keyring (libsecret)
-- [ ] Configurable redaction rules for sensitive headers/body patterns
-- [ ] WebSocket support
-- [ ] GraphQL support
-- [ ] Request/response interceptors
-- [ ] Automatic retry with exponential backoff
-- [ ] Response caching with Cache-Control respect
-- [ ] HTTP/3 (QUIC) support
-- [ ] Multi-handle async requests (CURLM)
+Tracked, in no particular order:
+
+- Request collections and per-environment variable resolution
+- History encryption via the system keyring (libsecret)
+- Configurable redaction rules for sensitive headers and body patterns
+- Multi-handle asynchronous requests (`CURLM`)
+- Automatic retry with exponential backoff
+- Response caching that respects `Cache-Control`
+- WebSocket support
+- GraphQL support
+- HTTP/3 (QUIC)
 
 ## Contributing
 
-Contributions are welcome!
-Whether it's bug fixes, new features, or documentation improvements.
+Bug reports and patches are welcome through the GitHub issue tracker and
+pull-request workflow. Before sending a non-trivial change, please open an
+issue to discuss the proposed direction.
 
-### How to Contribute
+When sending a patch:
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-### Development Guidelines
-
-- Follow the existing code style
-- Add tests for new features
-- Update documentation as needed
-- Ensure no memory leaks (verify with `valgrind`)
-- Run static analysis before submitting
-
-### Tests
-
-Unit tests for the `history` module (entry lifecycle, store operations, JSON round-trip) live under `tests/` and run via the GLib test framework. Each test runs in an isolated XDG directory tree (`G_TEST_OPTION_ISOLATE_DIRS`), so they never touch your real history file.
-
-```bash
-make test
-```
+- Match the existing code style: 2-space indentation, `snake_case` for
+  functions and variables, prefixed by module name (`http_pool_*`,
+  `history_*`, …).
+- Add or update unit tests under `tests/` where applicable. Tests use the
+  GLib test framework and run in isolated XDG directories via
+  `G_TEST_OPTION_ISOLATE_DIRS`.
+- Verify the change is leak-free with `make valgrind` for debug builds.
+- Keep commits focused and reference the relevant issue in the message.
 
 ## License
 
-RequestHub is licensed under the **GNU General Public License v2.0 or later**.
+RequestHub is distributed under the GNU General Public License, version 2
+or later. The full text is available in [`LICENSE`](LICENSE) and at
+<https://spdx.org/licenses/GPL-2.0-or-later.html>.
 
 ```
+SPDX-License-Identifier: GPL-2.0-or-later
 Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
 ```
 
-[Full License Text](https://spdx.org/licenses/GPL-2.0-or-later.html)
+## Resources
 
-## Acknowledgments
-
-- [libcurl](https://curl.se/libcurl/) - The foundation of RequestHub's HTTP functionality
-- [gtk](https://www.gtk.org/) - By offering a complete set of UI elements.
-
-## Contact
-
-## Support
-
-- [Report bugs](https://github.com/FinotiLucas/requesthub-c/issues)
-- [Request features](https://github.com/FinotiLucas/requesthub-c/issues)
-- [Discussions](https://github.com/FinotiLucas/requesthub-c/discussions)
-
----
-
-<p align="center">
-  Made by <a href="https://github.com/FinotiLucas">Lucas Finoti</a>
-</p>
-
-<p align="center">
-  If you find RequestHub useful, please consider giving it a ⭐ on GitHub!
-</p>
+- Source repository: <https://github.com/FinotiLucas/requesthub-c>
+- Issue tracker:     <https://github.com/FinotiLucas/requesthub-c/issues>
+- Discussions:       <https://github.com/FinotiLucas/requesthub-c/discussions>
