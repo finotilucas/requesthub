@@ -137,7 +137,7 @@ persistence, and binary or non-UTF-8 response bodies are not cached.
   Cookies, custom authentication headers (`X-API-Key`, etc.) and request
   bodies are persisted as written; only `Authorization` is filtered.
 - `CURLOPT_SSL_VERIFYPEER` and `CURLOPT_SSL_VERIFYHOST` are enabled by
-  default and are not exposed as a UI toggle.
+  default and are not exposed as a UI toggle yet.
 
 History encryption via the system keyring (`libsecret`) and configurable
 redaction rules are tracked in the roadmap.
@@ -186,6 +186,6 @@ Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
 
 ## Resources
 
-- Source repository: <https://github.com/FinotiLucas/requesthub-c>
-- Issue tracker:     <https://github.com/FinotiLucas/requesthub-c/issues>
-- Discussions:       <https://github.com/FinotiLucas/requesthub-c/discussions>
+- Source repository: <https://github.com/FinotiLucas/requesthub>
+- Issue tracker:     <https://github.com/FinotiLucas/requesthub/issues>
+- Discussions:       <https://github.com/FinotiLucas/requesthub/discussions>
