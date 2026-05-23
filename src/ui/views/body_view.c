@@ -300,33 +300,35 @@ void body_view_apply_to_request(BodyView *self, HttpRequest *request) {
   if (content && strlen(content) > 0 && self->is_valid) {
     http_request_set_body(request, content);
 
-    const char *content_type = NULL;
+    const char *content_type_value = NULL;
     switch (self->current_type) {
     case BODY_TYPE_JSON:
-      content_type = "Content-Type: application/json";
+      content_type_value = "application/json";
       break;
     case BODY_TYPE_XML:
-      content_type = "Content-Type: application/xml";
+      content_type_value = "application/xml";
       break;
     case BODY_TYPE_YAML:
-      content_type = "Content-Type: application/x-yaml";
+      content_type_value = "application/x-yaml";
       break;
     case BODY_TYPE_TEXT:
-      content_type = "Content-Type: text/plain";
+      content_type_value = "text/plain";
       break;
     }
 
-    if (content_type) {
+    if (content_type_value) {
       gboolean has_content_type = FALSE;
-      for (int i = 0; i < request->headers_count; i++) {
-        if (g_str_has_prefix(request->headers[i], "Content-Type:")) {
+      guint header_count = http_request_headers_count(request);
+      for (guint i = 0; i < header_count; i++) {
+        if (g_ascii_strcasecmp(http_request_header_key(request, i),
+                               "Content-Type") == 0) {
           has_content_type = TRUE;
           break;
         }
       }
 
       if (!has_content_type) {
-        http_request_add_header(request, content_type);
+        http_request_add_header(request, "Content-Type", content_type_value);
       }
     }
   } else if (content && strlen(content) == 0) {

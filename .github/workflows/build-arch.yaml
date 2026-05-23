@@ -59,7 +59,9 @@ jobs:
             pkgconf \
             glib2 \
             cjson \
-            curl  
+            curl \
+            libasan \
+            libubsan
 
       - uses: actions/checkout@v4
 
@@ -68,3 +70,7 @@ jobs:
           name: requesthub-arch
 
       - run: make test
+
+      - name: Run network integration tests
+        run: REQUESTHUB_NETWORK_TESTS=1 make test
+        continue-on-error: true

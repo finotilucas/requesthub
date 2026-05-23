@@ -34,6 +34,7 @@ HttpRequest *http_request_new(const char *url, HttpMethods method) {
 
   HttpRequest *request = g_new0(HttpRequest, 1);
   request->url = g_strdup(url);
+  request->headers = g_ptr_array_new_with_free_func(g_free);
   request->method = method;
   request->timeout = 30;
   request->connect_timeout = 10;
@@ -54,10 +55,7 @@ void http_request_free(HttpRequest *request) {
   g_free(request->auth_header);
 
   if (request->headers != NULL) {
-    for (int i = 0; i < request->headers_count; i++) {
-      g_free(request->headers[i]);
-    }
-    g_free(request->headers);
+    g_ptr_array_unref(request->headers);
   }
 
   if (request->query_params != NULL) {
@@ -70,59 +68,63 @@ void http_request_free(HttpRequest *request) {
   g_free(request);
 }
 
-HttpRequest *http_request_add_header(HttpRequest *request, const char *header) {
-  if (request == NULL || header == NULL) {
+HttpRequest *http_request_add_header(HttpRequest *request, const char *key,
+                                     const char *value) {
+  if (request == NULL || key == NULL || *key == '\0') {
     return request;
   }
 
-  request->headers =
-      g_realloc(request->headers, sizeof(char *) * (request->headers_count + 1));
-  request->headers[request->headers_count] = g_strdup(header);
-  request->headers_count++;
+  g_ptr_array_add(request->headers, g_strdup(key));
+  g_ptr_array_add(request->headers, g_strdup(value != NULL ? value : ""));
 
   return request;
 }
 
 HttpRequest *http_request_remove_header(HttpRequest *request, const char *key) {
   if (request == NULL || key == NULL || request->headers == NULL ||
-      request->headers_count == 0) {
+      request->headers->len == 0) {
     return request;
   }
 
-  size_t key_len = strlen(key);
-  int found_index = -1;
-
-  for (int i = 0; i < request->headers_count; i++) {
-    if (strncasecmp(request->headers[i], key, key_len) == 0 &&
-        request->headers[i][key_len] == ':') {
-      found_index = i;
-      break;
+  for (guint i = 0; i + 1 < request->headers->len; i += 2) {
+    const char *stored_key = g_ptr_array_index(request->headers, i);
+    if (g_ascii_strcasecmp(stored_key, key) == 0) {
+      g_ptr_array_remove_index(request->headers, i + 1);
+      g_ptr_array_remove_index(request->headers, i);
+      return request;
     }
   }
 
-  if (found_index == -1) {
-    return request;
-  }
-
-  g_free(request->headers[found_index]);
-
-  size_t num_elements_to_move = request->headers_count - found_index - 1;
-  if (num_elements_to_move > 0) {
-    memmove(&request->headers[found_index], &request->headers[found_index + 1],
-            sizeof(char *) * num_elements_to_move);
-  }
-
-  request->headers_count--;
-
-  if (request->headers_count == 0) {
-    g_free(request->headers);
-    request->headers = NULL;
-  } else {
-    request->headers =
-        g_realloc(request->headers, sizeof(char *) * request->headers_count);
-  }
-
   return request;
+}
+
+guint http_request_headers_count(const HttpRequest *request) {
+  if (request == NULL || request->headers == NULL) {
+    return 0;
+  }
+  return request->headers->len / 2;
+}
+
+const char *http_request_header_key(const HttpRequest *request, guint index) {
+  if (request == NULL || request->headers == NULL) {
+    return NULL;
+  }
+  guint slot = index * 2;
+  if (slot >= request->headers->len) {
+    return NULL;
+  }
+  return g_ptr_array_index(request->headers, slot);
+}
+
+const char *http_request_header_value(const HttpRequest *request, guint index) {
+  if (request == NULL || request->headers == NULL) {
+    return NULL;
+  }
+  guint slot = index * 2 + 1;
+  if (slot >= request->headers->len) {
+    return NULL;
+  }
+  return g_ptr_array_index(request->headers, slot);
 }
 
 HttpRequest *http_request_set_body(HttpRequest *request, const char *body) {
@@ -221,6 +223,25 @@ HttpRequest *http_request_set_timeout(HttpRequest *request, long seconds) {
   }
 
   request->timeout = seconds;
+  return request;
+}
+
+HttpRequest *http_request_set_connect_timeout(HttpRequest *request,
+                                              long seconds) {
+  if (request == NULL || seconds < 0) {
+    return request;
+  }
+
+  request->connect_timeout = seconds;
+  return request;
+}
+
+HttpRequest *http_request_set_verify_ssl(HttpRequest *request, int verify) {
+  if (request == NULL) {
+    return request;
+  }
+
+  request->verify_ssl = verify ? 1 : 0;
   return request;
 }
 

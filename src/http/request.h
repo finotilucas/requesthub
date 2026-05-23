@@ -26,10 +26,12 @@
 
 #include "methods.h"
 
+#include <glib.h>
+
 typedef struct {
   char *url;
   char *body;
-  char **headers;
+  GPtrArray *headers;
   char **query_params;
   char *auth_header;
   long timeout;
@@ -37,7 +39,6 @@ typedef struct {
   long follow_redirects;
   long max_redirects;
   long verify_ssl;
-  int headers_count;
   int query_count;
   HttpMethods method;
 } HttpRequest;
@@ -46,9 +47,16 @@ HttpRequest *http_request_new(const char *url, HttpMethods method);
 
 void http_request_free(HttpRequest *request);
 
-HttpRequest *http_request_add_header(HttpRequest *request, const char *header);
+HttpRequest *http_request_add_header(HttpRequest *request, const char *key,
+                                     const char *value);
 
 HttpRequest *http_request_remove_header(HttpRequest *request, const char *key);
+
+guint http_request_headers_count(const HttpRequest *request);
+
+const char *http_request_header_key(const HttpRequest *request, guint index);
+
+const char *http_request_header_value(const HttpRequest *request, guint index);
 
 HttpRequest *http_request_set_body(HttpRequest *request, const char *body);
 
@@ -59,6 +67,11 @@ HttpRequest *http_request_remove_query_param(HttpRequest *request,
                                              const char *key);
 
 HttpRequest *http_request_set_timeout(HttpRequest *request, long seconds);
+
+HttpRequest *http_request_set_connect_timeout(HttpRequest *request,
+                                              long seconds);
+
+HttpRequest *http_request_set_verify_ssl(HttpRequest *request, int verify);
 
 HttpRequest *http_request_set_bearer_token(HttpRequest *request,
                                            const char *token);

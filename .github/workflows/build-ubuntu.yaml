@@ -62,3 +62,7 @@ jobs:
           name: requesthub-ubuntu
 
       - run: make test
+
+      - name: Run network integration tests
+        run: REQUESTHUB_NETWORK_TESTS=1 make test
+        continue-on-error: true

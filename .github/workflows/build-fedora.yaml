@@ -58,7 +58,9 @@ jobs:
             git \
             glib2-devel \
             cjson-devel \
-            libcurl-devel
+            libcurl-devel \
+            libasan \
+            libubsan
 
       - uses: actions/checkout@v4
 
@@ -67,3 +69,7 @@ jobs:
           name: requesthub-fedora
 
       - run: make test
+
+      - name: Run network integration tests
+        run: REQUESTHUB_NETWORK_TESTS=1 make test
+        continue-on-error: true

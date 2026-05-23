@@ -26,6 +26,8 @@
 #include "request.h"
 #include "response.h"
 
+#include "../config/version.h"
+
 #include <curl/curl.h>
 #include <glib.h>
 #include <stdio.h>
@@ -89,17 +91,29 @@ static int header_exists(struct curl_slist *list, const char *key) {
 
 static void add_default_headers(struct curl_slist **headers) {
   if (!header_exists(*headers, "User-Agent")) {
-    *headers = curl_slist_append(*headers, "User-Agent: requesthub/0.0.1");
+    struct curl_slist *tmp =
+        curl_slist_append(*headers, "User-Agent: " REQUESTHUB_USER_AGENT);
+    if (tmp != NULL) {
+      *headers = tmp;
+    }
   }
   if (!header_exists(*headers, "Accept")) {
-    *headers = curl_slist_append(*headers, "Accept: */*");
+    struct curl_slist *tmp = curl_slist_append(*headers, "Accept: */*");
+    if (tmp != NULL) {
+      *headers = tmp;
+    }
   }
 }
 
 static struct curl_slist *build_headers_list(HttpRequest *request) {
   struct curl_slist *list = NULL;
-  for (int i = 0; i < request->headers_count; i++) {
-    struct curl_slist *tmp = curl_slist_append(list, request->headers[i]);
+  guint count = http_request_headers_count(request);
+  for (guint i = 0; i < count; i++) {
+    const char *key = http_request_header_key(request, i);
+    const char *value = http_request_header_value(request, i);
+    gchar *line = g_strdup_printf("%s: %s", key, value != NULL ? value : "");
+    struct curl_slist *tmp = curl_slist_append(list, line);
+    g_free(line);
     if (!tmp) {
       curl_slist_free_all(list);
       return NULL;
@@ -148,9 +162,13 @@ static void configure_curl_options(CURL *curl, HttpRequest *request,
 
   curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, request->verify_ssl ? 2L : 0L);
 
-  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, http_response_write_callback);
 
   curl_easy_setopt(curl, CURLOPT_WRITEDATA, response);
+
+  curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, http_response_header_callback);
+
+  curl_easy_setopt(curl, CURLOPT_HEADERDATA, response);
 
   curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0);
 
@@ -188,7 +206,17 @@ static gchar *build_query_string(HttpRequest *request) {
     return NULL;
   }
 
-  GString *buffer = g_string_new("?");
+  const char *existing_query = strchr(request->url, '?');
+  size_t url_len = strlen(request->url);
+  gboolean url_ends_with_separator =
+      existing_query != NULL &&
+      (url_len > 0 &&
+       (request->url[url_len - 1] == '?' || request->url[url_len - 1] == '&'));
+
+  GString *buffer = g_string_new(NULL);
+  if (!url_ends_with_separator) {
+    g_string_append_c(buffer, existing_query != NULL ? '&' : '?');
+  }
   for (int i = 0; i < request->query_count; i++) {
     if (i > 0) {
       g_string_append_c(buffer, '&');

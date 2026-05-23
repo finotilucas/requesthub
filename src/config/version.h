@@ -21,33 +21,10 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#ifndef RESPONSE_H
-#define RESPONSE_H
+#ifndef REQUESTHUB_VERSION_H
+#define REQUESTHUB_VERSION_H
 
-#include <curl/curl.h>
-#include <stddef.h>
-
-#define HTTP_RESPONSE_MAX_BODY_SIZE (10 * 1024 * 1024)
-
-typedef struct {
-  char *body;
-  char *content_type;
-  char *header_location;
-  char *etag;
-  struct curl_slist *all_headers;
-  size_t body_size;
-  double total_time;
-  double download_size;
-  long http_status;
-  long content_length;
-  CURLcode curl_code;
-} HttpResponse;
-
-HttpResponse *http_response_create(void);
-void http_response_free(HttpResponse *response);
-size_t http_response_write_callback(void *contents, size_t size, size_t nmemb,
-                                    void *userp);
-size_t http_response_header_callback(char *buffer, size_t size, size_t nitems,
-                                     void *userp);
+#define REQUESTHUB_VERSION "0.0.1"
+#define REQUESTHUB_USER_AGENT "requesthub/" REQUESTHUB_VERSION
 
 #endif

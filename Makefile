@@ -8,7 +8,14 @@ else
     WINDOWS    := 0
     CC         := gcc
     EXE        :=
-    SANITIZE   := -fsanitize=address -fsanitize=undefined
+    SANITIZE_PROBE := $(shell tmp=$$(mktemp 2>/dev/null) && \
+        echo 'int main(void){return 0;}' | $(CC) -fsanitize=address -fsanitize=undefined -xc - -o $$tmp 2>/dev/null && \
+        echo 1 || echo 0; rm -f $$tmp)
+    ifeq ($(SANITIZE_PROBE),1)
+        SANITIZE := -fsanitize=address -fsanitize=undefined
+    else
+        SANITIZE :=
+    endif
 endif
 
 GTK_CFLAGS        := $(shell pkg-config --cflags gtk4)
@@ -101,33 +108,82 @@ $(GRESOURCE_C): $(GRESOURCE_XML) $(GRESOURCE_DEPS)
 
 GLIB_TEST_CFLAGS := $(shell pkg-config --cflags glib-2.0)
 GLIB_TEST_LIBS   := $(shell pkg-config --libs   glib-2.0)
+CURL_TEST_CFLAGS := $(shell pkg-config --cflags libcurl 2>/dev/null)
+CURL_TEST_LIBS   := $(shell pkg-config --libs   libcurl 2>/dev/null || echo "-lcurl")
 
 TEST_DIR        := tests
 TEST_OBJ_DIR    := $(OBJ_DIR)/test
 TEST_BIN_DIR    := $(BUILD_DIR)/test
-TEST_TARGET     := $(TEST_BIN_DIR)/test_history$(EXE)
 
-TEST_SOURCES    := $(TEST_DIR)/test_history.c \
-                   $(SRC_DIR)/history/history.c
+TEST_HISTORY_TARGET     := $(TEST_BIN_DIR)/test_history$(EXE)
+TEST_HISTORY_SOURCES    := $(TEST_DIR)/test_history.c \
+                           $(SRC_DIR)/history/history.c
+TEST_HISTORY_OBJECTS    := $(TEST_HISTORY_SOURCES:%.c=$(TEST_OBJ_DIR)/%.o)
 
-TEST_OBJECTS    := $(TEST_SOURCES:%.c=$(TEST_OBJ_DIR)/%.o)
+TEST_REQUEST_TARGET     := $(TEST_BIN_DIR)/test_request$(EXE)
+TEST_REQUEST_SOURCES    := $(TEST_DIR)/test_request.c \
+                           $(SRC_DIR)/http/request.c \
+                           $(SRC_DIR)/http/methods.c
+TEST_REQUEST_OBJECTS    := $(TEST_REQUEST_SOURCES:%.c=$(TEST_OBJ_DIR)/%.o)
 
-TEST_CFLAGS     := -g -Wall -Wextra -Werror -std=gnu11 \
-                   $(GLIB_TEST_CFLAGS) $(CJSON_CFLAGS)
+TEST_RESPONSE_TARGET    := $(TEST_BIN_DIR)/test_response$(EXE)
+TEST_RESPONSE_SOURCES   := $(TEST_DIR)/test_response.c \
+                           $(SRC_DIR)/http/response.c
+TEST_RESPONSE_OBJECTS   := $(TEST_RESPONSE_SOURCES:%.c=$(TEST_OBJ_DIR)/%.o)
 
-TEST_LDFLAGS    := $(GLIB_TEST_LIBS) $(CJSON_LIBS)
+TEST_HTTP_POOL_TARGET   := $(TEST_BIN_DIR)/test_http_pool$(EXE)
+TEST_HTTP_POOL_SOURCES  := $(TEST_DIR)/test_http_pool.c \
+                           $(SRC_DIR)/http/http_pool.c
+TEST_HTTP_POOL_OBJECTS  := $(TEST_HTTP_POOL_SOURCES:%.c=$(TEST_OBJ_DIR)/%.o)
+
+TEST_HTTP_PERFORM_TARGET  := $(TEST_BIN_DIR)/test_http_perform$(EXE)
+TEST_HTTP_PERFORM_SOURCES := $(TEST_DIR)/test_http_perform.c \
+                             $(SRC_DIR)/http/http.c \
+                             $(SRC_DIR)/http/http_pool.c \
+                             $(SRC_DIR)/http/methods.c \
+                             $(SRC_DIR)/http/request.c \
+                             $(SRC_DIR)/http/response.c
+TEST_HTTP_PERFORM_OBJECTS := $(TEST_HTTP_PERFORM_SOURCES:%.c=$(TEST_OBJ_DIR)/%.o)
+
+TEST_TARGETS    := $(TEST_HISTORY_TARGET) \
+                   $(TEST_REQUEST_TARGET) \
+                   $(TEST_RESPONSE_TARGET) \
+                   $(TEST_HTTP_POOL_TARGET) \
+                   $(TEST_HTTP_PERFORM_TARGET)
+
+TEST_CFLAGS     := -g $(SANITIZE) -Wall -Wextra -Werror -std=gnu11 \
+                   $(GLIB_TEST_CFLAGS) $(CJSON_CFLAGS) $(CURL_TEST_CFLAGS)
+
+TEST_LDFLAGS    := $(SANITIZE) $(GLIB_TEST_LIBS) $(CJSON_LIBS) \
+                   $(CURL_TEST_LIBS) -lpthread
 
 $(TEST_OBJ_DIR)/%.o: %.c
 	@mkdir -p $(dir $@)
 	@echo "Compiling (test):    $<"
 	$(CC) $(TEST_CFLAGS) -c $< -o $@
 
-$(TEST_TARGET): $(TEST_OBJECTS)
+$(TEST_HISTORY_TARGET): $(TEST_HISTORY_OBJECTS)
 	@mkdir -p $(TEST_BIN_DIR)
 	$(CC) $^ -o $@ $(TEST_LDFLAGS)
 
-test: $(TEST_TARGET)
-	$(TEST_TARGET)
+$(TEST_REQUEST_TARGET): $(TEST_REQUEST_OBJECTS)
+	@mkdir -p $(TEST_BIN_DIR)
+	$(CC) $^ -o $@ $(TEST_LDFLAGS)
+
+$(TEST_RESPONSE_TARGET): $(TEST_RESPONSE_OBJECTS)
+	@mkdir -p $(TEST_BIN_DIR)
+	$(CC) $^ -o $@ $(TEST_LDFLAGS)
+
+$(TEST_HTTP_POOL_TARGET): $(TEST_HTTP_POOL_OBJECTS)
+	@mkdir -p $(TEST_BIN_DIR)
+	$(CC) $^ -o $@ $(TEST_LDFLAGS)
+
+$(TEST_HTTP_PERFORM_TARGET): $(TEST_HTTP_PERFORM_OBJECTS)
+	@mkdir -p $(TEST_BIN_DIR)
+	$(CC) $^ -o $@ $(TEST_LDFLAGS)
+
+test: $(TEST_TARGETS)
+	@for t in $(TEST_TARGETS); do echo "==> $$t"; $$t || exit $$?; done
 
 .PHONY: all debug release clean run run-release rebuild deps-check test
 
