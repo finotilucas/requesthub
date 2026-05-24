@@ -23,7 +23,7 @@
 
 #include <gtk/gtk.h>
 
-#define APP_CSS_RESOURCE_PATH "/com/requesthub/app/app.css"
+#define APP_CSS_RESOURCE_PATH "/io/github/finotilucas/requesthub/app.css"
 #define APP_CSS_DEV_PATH "src/ui/styles/app.css"
 
 static GtkCssProvider *css_provider = NULL;

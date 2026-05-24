@@ -21,15 +21,30 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#include "app.h"
+#ifndef HISTORY_SERVICE_H
+#define HISTORY_SERVICE_H
 
-#include "../config/app_config.h"
-#include "../controllers/app_controller.h"
+#include "../history/history.h"
+#include "../http/methods.h"
 
-#include <adwaita.h>
+#include <glib-object.h>
 
-void on_activate(GtkApplication *app, gpointer user_data) {
-  AppConfig *cfg = (AppConfig *)user_data;
-  AppController *controller = app_controller_new(ADW_APPLICATION(app), cfg);
-  app_controller_present(controller);
-}
+G_BEGIN_DECLS
+
+#define HISTORY_TYPE_SERVICE (history_service_get_type())
+G_DECLARE_FINAL_TYPE(HistoryService, history_service, HISTORY, SERVICE, GObject)
+
+HistoryService *history_service_new(gsize max_entries);
+
+gsize         history_service_count(HistoryService *self);
+HistoryEntry *history_service_get  (HistoryService *self, gsize index);
+HistoryEntry *history_service_find_by_request(HistoryService *self,
+                                              const char *url,
+                                              HttpMethods method);
+void history_service_record(HistoryService *self, HistoryEntry *entry);
+void history_service_remove(HistoryService *self, HistoryEntry *entry);
+void history_service_clear (HistoryService *self);
+
+G_END_DECLS
+
+#endif

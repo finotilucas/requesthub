@@ -21,12 +21,12 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#include "body_view.h"
+#include "body_panel.h"
 #include "../../utils/body_validator.h"
 #include <gtk/gtk.h>
 #include <gtksourceview/gtksource.h>
 
-struct _BodyView {
+struct _BodyPanel {
   GtkBox parent_instance;
 
   GtkDropDown *type_dropdown;
@@ -40,14 +40,8 @@ struct _BodyView {
   gboolean is_valid;
 };
 
-G_DEFINE_TYPE(BodyView, body_view, GTK_TYPE_BOX)
+G_DEFINE_TYPE(BodyPanel, body_panel, GTK_TYPE_BOX)
 
-/*
- * GtkSourceView's syntax highlighter is lazy: changing the language via
- * gtk_source_buffer_set_language() does not retroactively re-highlight existing
- * text — it only re-evaluates after a buffer modification event. This dirties
- * the buffer with a single-character round-trip to force a full rehighlight.
- */
 static void force_highlight_immediate(GtkSourceBuffer *buffer) {
   GtkTextIter start, end;
 
@@ -63,7 +57,7 @@ static void force_highlight_immediate(GtkSourceBuffer *buffer) {
   g_signal_emit_by_name(buffer, "changed");
 }
 
-static void update_validation_status(BodyView *self, gboolean is_valid,
+static void update_validation_status(BodyPanel *self, gboolean is_valid,
                                      const char *message) {
   self->is_valid = is_valid;
 
@@ -80,7 +74,7 @@ static void update_validation_status(BodyView *self, gboolean is_valid,
   }
 }
 
-static void validate_current_content(BodyView *self) {
+static void validate_current_content(BodyPanel *self) {
   GtkTextIter start, end;
   char *text;
   gboolean is_valid = TRUE;
@@ -127,7 +121,7 @@ static void validate_current_content(BodyView *self) {
 
 static void on_buffer_changed(GtkTextBuffer *buffer, gpointer user_data) {
   (void)buffer;
-  BodyView *self = BODY_VIEW(user_data);
+  BodyPanel *self = BODY_PANEL(user_data);
 
   if (self->current_type != BODY_TYPE_TEXT) {
     validate_current_content(self);
@@ -137,22 +131,22 @@ static void on_buffer_changed(GtkTextBuffer *buffer, gpointer user_data) {
 static void on_type_changed(GtkDropDown *dropdown, GParamSpec *pspec,
                             gpointer user_data) {
   (void)pspec;
-  BodyView *self = BODY_VIEW(user_data);
+  BodyPanel *self = BODY_PANEL(user_data);
   guint selected = gtk_drop_down_get_selected(dropdown);
 
-  body_view_set_content_type(self, (BodyContentType)selected);
+  body_panel_set_content_type(self, (BodyContentType)selected);
 }
 
 static void on_clear_clicked(GtkButton *btn, gpointer user_data) {
   (void)btn;
-  body_view_clear(BODY_VIEW(user_data));
+  body_panel_clear(BODY_PANEL(user_data));
 }
 
 static void on_format_clicked(GtkButton *btn, gpointer user_data) {
   (void)btn;
-  BodyView *self = BODY_VIEW(user_data);
+  BodyPanel *self = BODY_PANEL(user_data);
 
-  char *content = body_view_get_content(self);
+  char *content = body_panel_get_content(self);
   if (!content || strlen(content) == 0) {
     g_free(content);
     return;
@@ -174,16 +168,16 @@ static void on_format_clicked(GtkButton *btn, gpointer user_data) {
   }
 
   if (formatted) {
-    body_view_set_content(self, formatted);
+    body_panel_set_content(self, formatted);
     g_free(formatted);
   }
 
   g_free(content);
 }
 
-static void body_view_class_init(BodyViewClass *klass) { (void)klass; }
+static void body_panel_class_init(BodyPanelClass *klass) { (void)klass; }
 
-static void body_view_init(BodyView *self) {
+static void body_panel_init(BodyPanel *self) {
   GtkSourceLanguageManager *lang_manager;
   GtkSourceStyleSchemeManager *style_manager;
   GtkSourceStyleScheme *scheme;
@@ -289,13 +283,13 @@ static void body_view_init(BodyView *self) {
   update_validation_status(self, TRUE, NULL);
 }
 
-BodyView *body_view_new(void) { return g_object_new(TYPE_BODY_VIEW, NULL); }
+BodyPanel *body_panel_new(void) { return g_object_new(TYPE_BODY_PANEL, NULL); }
 
-void body_view_apply_to_request(BodyView *self, HttpRequest *request) {
-  g_return_if_fail(BODY_IS_VIEW(self));
+void body_panel_apply_to_request(BodyPanel *self, HttpRequest *request) {
+  g_return_if_fail(BODY_IS_PANEL(self));
   g_return_if_fail(request != NULL);
 
-  char *content = body_view_get_content(self);
+  char *content = body_panel_get_content(self);
 
   if (content && strlen(content) > 0 && self->is_valid) {
     http_request_set_body(request, content);
@@ -338,8 +332,8 @@ void body_view_apply_to_request(BodyView *self, HttpRequest *request) {
   g_free(content);
 }
 
-void body_view_clear(BodyView *self) {
-  g_return_if_fail(BODY_IS_VIEW(self));
+void body_panel_clear(BodyPanel *self) {
+  g_return_if_fail(BODY_IS_PANEL(self));
 
   GtkTextIter start, end;
   gtk_text_buffer_get_bounds(GTK_TEXT_BUFFER(self->source_buffer), &start,
@@ -349,8 +343,8 @@ void body_view_clear(BodyView *self) {
   update_validation_status(self, TRUE, NULL);
 }
 
-void body_view_set_content_type(BodyView *self, BodyContentType type) {
-  g_return_if_fail(BODY_IS_VIEW(self));
+void body_panel_set_content_type(BodyPanel *self, BodyContentType type) {
+  g_return_if_fail(BODY_IS_PANEL(self));
 
   GtkSourceLanguageManager *lang_manager;
   GtkSourceLanguage *language = NULL;
@@ -400,13 +394,13 @@ void body_view_set_content_type(BodyView *self, BodyContentType type) {
   }
 }
 
-BodyContentType body_view_get_content_type(BodyView *self) {
-  g_return_val_if_fail(BODY_IS_VIEW(self), BODY_TYPE_TEXT);
+BodyContentType body_panel_get_content_type(BodyPanel *self) {
+  g_return_val_if_fail(BODY_IS_PANEL(self), BODY_TYPE_TEXT);
   return self->current_type;
 }
 
-void body_view_set_content(BodyView *self, const char *content) {
-  g_return_if_fail(BODY_IS_VIEW(self));
+void body_panel_set_content(BodyPanel *self, const char *content) {
+  g_return_if_fail(BODY_IS_PANEL(self));
 
   GtkTextIter start, end;
 
@@ -424,8 +418,8 @@ void body_view_set_content(BodyView *self, const char *content) {
   validate_current_content(self);
 }
 
-char *body_view_get_content(BodyView *self) {
-  g_return_val_if_fail(BODY_IS_VIEW(self), NULL);
+char *body_panel_get_content(BodyPanel *self) {
+  g_return_val_if_fail(BODY_IS_PANEL(self), NULL);
 
   GtkTextIter start, end;
   gtk_text_buffer_get_bounds(GTK_TEXT_BUFFER(self->source_buffer), &start,
@@ -434,7 +428,7 @@ char *body_view_get_content(BodyView *self) {
                                   &end, FALSE);
 }
 
-gboolean body_view_is_valid(BodyView *self) {
-  g_return_val_if_fail(BODY_IS_VIEW(self), FALSE);
+gboolean body_panel_is_valid(BodyPanel *self) {
+  g_return_val_if_fail(BODY_IS_PANEL(self), FALSE);
   return self->is_valid;
 }

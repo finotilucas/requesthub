@@ -21,25 +21,21 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#ifndef PARAMS_VIEW_H
-#define PARAMS_VIEW_H
+#ifndef HISTORY_VIEW_H
+#define HISTORY_VIEW_H
 
-#include "../../http/request.h"
+#include "../../services/history_service.h"
+
 #include <gtk/gtk.h>
 
 G_BEGIN_DECLS
 
-#define TYPE_PARAMS_VIEW (params_view_get_type())
-G_DECLARE_FINAL_TYPE(ParamsView, params_view, PARAMS, VIEW, GtkBox)
+#define HISTORY_VIEW_DEFAULT_WIDTH 260
 
-ParamsView *params_view_new(void);
-void params_view_apply_to_request(ParamsView *self, HttpRequest *request);
-void params_view_clear_all(ParamsView *self);
-void params_view_for_each(ParamsView *self,
-                          void (*func)(const char *key, const char *value,
-                                       gpointer user_data),
-                          gpointer user_data);
-void params_view_add_pair(ParamsView *self, const char *key, const char *value);
+#define HISTORY_TYPE_VIEW (history_view_get_type())
+G_DECLARE_FINAL_TYPE(HistoryView, history_view, HISTORY, VIEW, GtkBox)
+
+HistoryView *history_view_new(HistoryService *service);
 
 G_END_DECLS
 

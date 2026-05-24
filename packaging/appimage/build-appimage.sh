@@ -146,12 +146,43 @@ for round in 1 2 3 4 5; do
   [[ "${round}" -eq 5 ]] && die "lib closure did not converge"
 done
 
-# --- 7. AppRun hook: LD_LIBRARY_PATH ---------------------------------------
+# --- 7. patch linuxdeploy-plugin-gtk hook ----------------------------------
+#
+# The generated AppRun only sources apprun-hooks/linuxdeploy-plugin-gtk.sh
+# (extra files in apprun-hooks/ are ignored). That plugin queries the desktop
+# portal + GSettings for color-scheme and falls back to GTK_THEME=Adwaita:light
+# when nothing answers (typical on KDE / non-GNOME hosts). GTK_THEME is honored
+# by GTK at startup, so the app boots in light mode before AdwStyleManager can
+# override, producing a visually broken Adwaita+light/dark mix.
+#
+# We append our pins at the END of the hook so they win when the env is
+# exported. We also force the Adwaita icon theme so the bundled Adwaita icons
+# beat the user's gtk-icon-theme-name=breeze-dark / Papirus / etc.
 
-cat > "${APPDIR}/apprun-hooks/00-library-path.sh" <<'EOF'
-APPDIR="${APPDIR:-"$(dirname "$(realpath "$0")")"}"
-export LD_LIBRARY_PATH="$APPDIR/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+gtk_hook="${APPDIR}/apprun-hooks/linuxdeploy-plugin-gtk.sh"
+if [[ -f "${gtk_hook}" ]]; then
+  log "patching plugin-gtk hook to force Adwaita:dark"
+  cat >> "${gtk_hook}" <<'EOF'
+
+# --- requesthub overrides (appended by build-appimage.sh) ------------------
+# Pin the libadwaita color scheme; the plugin's portal/gsettings detection
+# defaults to light on KDE/Sway/etc., which fights AdwStyleManager(FORCE_DARK).
+export GTK_THEME="Adwaita:dark"
+# Match icon theme to the bundled assets (we ship /usr/share/icons/Adwaita
+# inside the AppImage; without this the host's gtk-icon-theme-name wins).
+export GTK_ICON_THEME_NAME="Adwaita"
+# The plugin sets GDK_BACKEND=x11 to dodge an old GTK4-on-Wayland crash that
+# no longer reproduces on current GTK4 + libadwaita. Forcing x11 means
+# Wayland users get XWayland, which can misrender HiDPI scaling and degrade
+# input. Clear it so GTK4 picks the user's native backend ($WAYLAND_DISPLAY
+# → wayland, $DISPLAY → x11). Users hitting an edge-case crash can still
+# set GDK_BACKEND=x11 manually before launching the AppImage.
+unset GDK_BACKEND
+# --- end requesthub overrides ----------------------------------------------
 EOF
+else
+  log "warning: linuxdeploy-plugin-gtk.sh hook not found; theme may misrender"
+fi
 
 # --- 8. bundle GtkSourceView-5 data ----------------------------------------
 
@@ -162,7 +193,23 @@ if [[ -d "${gsv}" ]]; then
   cp -r "${gsv}/." "${APPDIR}/usr/share/gtksourceview-5/"
 fi
 
-# --- 9. refresh pixbuf loaders cache ---------------------------------------
+# --- 9. bundle Adwaita icon theme ------------------------------------------
+
+adwaita_icons="/usr/share/icons/Adwaita"
+if [[ -d "${adwaita_icons}" ]]; then
+  log "bundling Adwaita icon theme"
+  mkdir -p "${APPDIR}/usr/share/icons"
+  cp -rL "${adwaita_icons}" "${APPDIR}/usr/share/icons/Adwaita"
+  # Refresh the icon cache so GTK doesn't fall back to per-file scans.
+  if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+    gtk-update-icon-cache -q -t -f "${APPDIR}/usr/share/icons/Adwaita" || true
+  fi
+else
+  log "warning: Adwaita icon theme not found at ${adwaita_icons}; AppImage"
+  log "         will fall back to the host's icon theme at runtime"
+fi
+
+# --- 10. refresh pixbuf loaders cache --------------------------------------
 
 pixbuf_cache="${APPDIR}/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache"
 pixbuf_loaders="${APPDIR}/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders"
@@ -173,10 +220,29 @@ if [[ -d "${pixbuf_loaders}" && -x "${SHIMS_DIR}/gdk-pixbuf-query-loaders" ]]; t
   sed -i "s|${pixbuf_loaders}/||g" "${pixbuf_cache}"
 fi
 
-# --- 10. package via appimagetool ------------------------------------------
+# --- 11. package via appimagetool ------------------------------------------
 
 log "packaging ${OUTPUT}"
 rm -f "${BUILD_DIR}/${OUTPUT}"
 ARCH="${ARCH}" "${APPIMAGETOOL}" "${APPDIR}" "${BUILD_DIR}/${OUTPUT}"
+
+# --- 12. diagnostic summary ------------------------------------------------
+
+log "build summary:"
+log "  AppDir size:       $(du -sh "${APPDIR}" | cut -f1)"
+log "  AppImage size:     $(du -sh "${BUILD_DIR}/${OUTPUT}" | cut -f1)"
+adw_so="$(find "${APPDIR}" -name 'libadwaita-1.so*' -print -quit 2>/dev/null)"
+log "  libadwaita:        ${adw_so:-NOT BUNDLED}"
+gtk_so="$(find "${APPDIR}" -name 'libgtk-4.so*' -print -quit 2>/dev/null)"
+log "  libgtk-4:          ${gtk_so:-NOT BUNDLED}"
+if [[ -d "${APPDIR}/usr/share/icons/Adwaita" ]]; then
+  log "  Adwaita icons:     $(du -sh "${APPDIR}/usr/share/icons/Adwaita" | cut -f1)"
+else
+  log "  Adwaita icons:     NOT BUNDLED"
+fi
+schemas_count=$(find "${APPDIR}/usr/share/glib-2.0/schemas" -name '*.xml' 2>/dev/null | wc -l)
+log "  GSettings schemas: ${schemas_count} files"
+theme_line="$(grep -E '^export GTK_THEME=' "${APPDIR}/apprun-hooks/linuxdeploy-plugin-gtk.sh" 2>/dev/null | tail -1)"
+log "  GTK_THEME (final): ${theme_line:-NOT SET}"
 
 log "done: ${BUILD_DIR}/${OUTPUT}"

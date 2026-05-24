@@ -21,15 +21,24 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#include "app.h"
+#ifndef APP_CONTROLLER_H
+#define APP_CONTROLLER_H
 
 #include "../config/app_config.h"
-#include "../controllers/app_controller.h"
 
 #include <adwaita.h>
 
-void on_activate(GtkApplication *app, gpointer user_data) {
-  AppConfig *cfg = (AppConfig *)user_data;
-  AppController *controller = app_controller_new(ADW_APPLICATION(app), cfg);
-  app_controller_present(controller);
-}
+G_BEGIN_DECLS
+
+#define APP_TYPE_CONTROLLER (app_controller_get_type())
+G_DECLARE_FINAL_TYPE(AppController, app_controller, APP, CONTROLLER, GObject)
+
+AppController *app_controller_new(AdwApplication *application,
+                                  AppConfig *config);
+void app_controller_present(AppController *self);
+void app_controller_trigger_send(AppController *self);
+void app_controller_focus_url(AppController *self);
+
+G_END_DECLS
+
+#endif

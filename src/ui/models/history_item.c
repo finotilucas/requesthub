@@ -21,15 +21,25 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#include "app.h"
+#include "history_item.h"
 
-#include "../config/app_config.h"
-#include "../controllers/app_controller.h"
+struct _HistoryItem {
+  GObject parent_instance;
+  HistoryEntry *entry;
+};
 
-#include <adwaita.h>
+G_DEFINE_FINAL_TYPE(HistoryItem, history_item, G_TYPE_OBJECT)
 
-void on_activate(GtkApplication *app, gpointer user_data) {
-  AppConfig *cfg = (AppConfig *)user_data;
-  AppController *controller = app_controller_new(ADW_APPLICATION(app), cfg);
-  app_controller_present(controller);
+HistoryItem *history_item_new(HistoryEntry *entry) {
+  HistoryItem *self = g_object_new(HISTORY_TYPE_ITEM, NULL);
+  self->entry = entry;
+  return self;
 }
+
+HistoryEntry *history_item_get_entry(HistoryItem *self) {
+  g_return_val_if_fail(HISTORY_IS_ITEM(self), NULL);
+  return self->entry;
+}
+
+static void history_item_class_init(HistoryItemClass *klass) { (void)klass; }
+static void history_item_init(HistoryItem *self) { (void)self; }

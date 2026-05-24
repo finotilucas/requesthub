@@ -21,26 +21,21 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#ifndef HEADERS_VIEW_H
-#define HEADERS_VIEW_H
+#ifndef HISTORY_LIST_MODEL_H
+#define HISTORY_LIST_MODEL_H
 
-#include "../../http/request.h"
-#include <gtk/gtk.h>
+#include "../../services/history_service.h"
+
+#include <gio/gio.h>
+#include <glib-object.h>
 
 G_BEGIN_DECLS
 
-#define TYPE_HEADERS_VIEW (headers_view_get_type())
-G_DECLARE_FINAL_TYPE(HeadersView, headers_view, HEADERS, VIEW, GtkBox)
+#define HISTORY_TYPE_LIST_MODEL (history_list_model_get_type())
+G_DECLARE_FINAL_TYPE(HistoryListModel, history_list_model, HISTORY, LIST_MODEL,
+                     GObject)
 
-HeadersView *headers_view_new(void);
-void headers_view_apply_to_request(HeadersView *self, HttpRequest *request);
-void headers_view_clear_all(HeadersView *self);
-void headers_view_for_each(HeadersView *self,
-                           void (*func)(const char *key, const char *value,
-                                        gpointer user_data),
-                           gpointer user_data);
-void headers_view_add_pair(HeadersView *self, const char *key,
-                           const char *value);
+HistoryListModel *history_list_model_new(HistoryService *service);
 
 G_END_DECLS
 

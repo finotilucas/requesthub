@@ -23,20 +23,27 @@
 
 #pragma once
 
-#include "../../history/history.h"
-#include "../components/request_top_bar.h"
-#include "body_view.h"
-#include "headers_view.h"
-#include "params_view.h"
+#include "../../models/request_state.h"
+#include "../panels/request_top_bar.h"
+#include "../panels/body_panel.h"
+#include "../panels/headers_panel.h"
+#include "../panels/params_panel.h"
 #include <gtk/gtk.h>
+
+#define REQUEST_VIEW_MIN_WIDTH 380
 
 #define REQUEST_TYPE_VIEW (request_view_get_type())
 G_DECLARE_FINAL_TYPE(RequestView, request_view, REQUEST, VIEW, GtkBox)
 
 RequestView *request_view_new(void);
 RequestTopBar *request_view_get_top_bar(RequestView *self);
-ParamsView *request_view_get_params_view(RequestView *self);
-HeadersView *request_view_get_headers_view(RequestView *self);
-BodyView *request_view_get_body_view(RequestView *self);
-void request_view_load_history_entry(RequestView *self,
-                                     const HistoryEntry *entry);
+ParamsPanel *request_view_get_params_panel(RequestView *self);
+HeadersPanel *request_view_get_headers_panel(RequestView *self);
+BodyPanel *request_view_get_body_panel(RequestView *self);
+
+/* Loads neutral state into the view's widgets. The state is borrowed. */
+void request_view_apply_state(RequestView *self, const RequestState *state);
+
+/* Captures the current widget state as a freshly allocated RequestState.
+ * Caller owns the returned pointer (transfer: full). */
+RequestState *request_view_capture_state(RequestView *self);

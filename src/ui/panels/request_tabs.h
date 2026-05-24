@@ -23,11 +23,18 @@
 
 #pragma once
 
+#include <adwaita.h>
 #include <gtk/gtk.h>
+
+G_BEGIN_DECLS
 
 #define REQUEST_TYPE_TABS (request_tabs_get_type())
 G_DECLARE_FINAL_TYPE(RequestTabs, request_tabs, REQUEST, TABS, GtkBox)
 
 RequestTabs *request_tabs_new(void);
-void request_tabs_add_view(RequestTabs *self, GtkWidget *view_content,
-                           const char *title);
+
+void request_tabs_add_view(RequestTabs *self, GtkWidget *content,
+                           const char *name, const char *title,
+                           const char *icon_name);
+
+G_END_DECLS

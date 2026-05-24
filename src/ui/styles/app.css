@@ -46,21 +46,13 @@
     border-radius: 4px;
 }
 
-.history-sidebar {
-    background-color: rgba(255, 255, 255, 0.02);
-    border-right: 1px solid rgba(255, 255, 255, 0.06);
-}
+/* Sidebar background is inherited from AdwOverlaySplitView's "sidebar" slot
+ * styling; avoid overriding it so empty/filled states match the rest of the
+ * app's surfaces. Per-row hover and selection are handled by libadwaita's
+ * default list theming (driven by @accent_color). */
 
-.history-list row {
+.history-list > row {
     padding: 0;
-}
-
-.history-list row:hover {
-    background-color: rgba(255, 255, 255, 0.04);
-}
-
-.history-list row:selected {
-    background-color: rgba(120, 174, 237, 0.18);
 }
 
 .history-row {
@@ -88,14 +80,14 @@
 }
 
 .history-count {
-    opacity: 0.7;
-    font-family: monospace;
-    background: rgba(255, 255, 255, 0.06);
-    padding: 2px 8px;
+    background: alpha(@accent_color, 0.15);
+    color: @accent_color;
+    padding: 1px 8px;
     border-radius: 10px;
-    min-width: 28px;
-    min-height: 18px;
-    font-size: 0.82em;
+    min-width: 20px;
+    min-height: 16px;
+    font-size: 0.78em;
+    font-family: monospace;
 }
 
 .history-row-delete {
@@ -113,7 +105,7 @@
 
 .history-list .history-row-delete:hover {
     opacity: 1;
-    color: #c92a2a;
+    color: @error_color;
 }
 
 .method-badge {

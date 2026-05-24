@@ -21,15 +21,28 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#include "app.h"
+#ifndef HTTP_SERVICE_H
+#define HTTP_SERVICE_H
 
-#include "../config/app_config.h"
-#include "../controllers/app_controller.h"
+#include "../http/request.h"
+#include "../http/response.h"
 
-#include <adwaita.h>
+#include <gio/gio.h>
+#include <glib-object.h>
 
-void on_activate(GtkApplication *app, gpointer user_data) {
-  AppConfig *cfg = (AppConfig *)user_data;
-  AppController *controller = app_controller_new(ADW_APPLICATION(app), cfg);
-  app_controller_present(controller);
-}
+G_BEGIN_DECLS
+
+#define HTTP_TYPE_SERVICE (http_service_get_type())
+G_DECLARE_FINAL_TYPE(HttpService, http_service, HTTP, SERVICE, GObject)
+
+HttpService *http_service_new(void);
+
+void http_service_send_async(HttpService *self, HttpRequest *request,
+                             GCancellable *cancellable,
+                             GAsyncReadyCallback callback, gpointer user_data);
+HttpResponse *http_service_send_finish(HttpService *self, GAsyncResult *result,
+                                       GError **error);
+
+G_END_DECLS
+
+#endif

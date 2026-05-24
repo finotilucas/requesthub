@@ -22,8 +22,8 @@
  ******************************************************************************/
 
 #include "response_view.h"
-#include "../components/response_content.h"
-#include "../components/response_top_bar.h"
+#include "../panels/response_content.h"
+#include "../panels/response_top_bar.h"
 
 struct _ResponseView {
   GtkBox parent_instance;

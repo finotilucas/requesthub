@@ -20,6 +20,8 @@ endif
 
 GTK_CFLAGS        := $(shell pkg-config --cflags gtk4)
 GTK_LIBS          := $(shell pkg-config --libs gtk4)
+ADW_CFLAGS        := $(shell pkg-config --cflags libadwaita-1)
+ADW_LIBS          := $(shell pkg-config --libs libadwaita-1)
 SOURCEVIEW_CFLAGS := $(shell pkg-config --cflags gtksourceview-5)
 SOURCEVIEW_LIBS   := $(shell pkg-config --libs gtksourceview-5)
 
@@ -34,6 +36,7 @@ CJSON_LIBS        := $(shell pkg-config --libs libcjson 2>/dev/null || echo "-lc
 
 COMMON_CFLAGS := -Wall -Wextra -Werror -std=gnu11 -Iinclude \
                  $(GTK_CFLAGS) \
+                 $(ADW_CFLAGS) \
                  $(SOURCEVIEW_CFLAGS) \
                  $(CJSON_CFLAGS) \
                  $(LIBXML2_CFLAGS) \
@@ -52,6 +55,7 @@ else
 endif
 
 LDFLAGS_COMMON := $(GTK_LIBS) \
+                  $(ADW_LIBS) \
                   $(SOURCEVIEW_LIBS) \
                   $(CJSON_LIBS) \
                   $(LIBXML2_LIBS) \
@@ -193,6 +197,7 @@ test: $(TEST_TARGETS)
 deps-check:
 	@echo "Checking dependencies..."
 	@pkg-config --exists gtk4 || (echo "GTK4 not found" && exit 1)
+	@pkg-config --exists libadwaita-1 || (echo "libadwaita-1 not found" && exit 1)
 	@pkg-config --exists gtksourceview-5 || (echo "GtkSourceView-5 not found" && exit 1)
 	@pkg-config --exists libxml-2.0 || (echo "libxml2 not found" && exit 1)
 	@pkg-config --exists libcurl || (echo "libcurl not found" && exit 1)

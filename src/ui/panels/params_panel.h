@@ -21,15 +21,26 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#include "app.h"
+#ifndef PARAMS_PANEL_H
+#define PARAMS_PANEL_H
 
-#include "../config/app_config.h"
-#include "../controllers/app_controller.h"
+#include "../../http/request.h"
+#include <gtk/gtk.h>
 
-#include <adwaita.h>
+G_BEGIN_DECLS
 
-void on_activate(GtkApplication *app, gpointer user_data) {
-  AppConfig *cfg = (AppConfig *)user_data;
-  AppController *controller = app_controller_new(ADW_APPLICATION(app), cfg);
-  app_controller_present(controller);
-}
+#define TYPE_PARAMS_PANEL (params_panel_get_type())
+G_DECLARE_FINAL_TYPE(ParamsPanel, params_panel, PARAMS, PANEL, GtkBox)
+
+ParamsPanel *params_panel_new(void);
+void params_panel_apply_to_request(ParamsPanel *self, HttpRequest *request);
+void params_panel_clear_all(ParamsPanel *self);
+void params_panel_for_each(ParamsPanel *self,
+                          void (*func)(const char *key, const char *value,
+                                       gpointer user_data),
+                          gpointer user_data);
+void params_panel_add_pair(ParamsPanel *self, const char *key, const char *value);
+
+G_END_DECLS
+
+#endif

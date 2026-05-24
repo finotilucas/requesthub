@@ -22,7 +22,7 @@
  ******************************************************************************/
 
 #include "response_content.h"
-#include "source_view.h"
+#include "../components/source_view.h"
 #include <cjson/cJSON.h>
 #include <curl/curl.h>
 #include <gtk/gtk.h>

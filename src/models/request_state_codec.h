@@ -21,15 +21,17 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#include "app.h"
+#ifndef REQUEST_STATE_CODEC_H
+#define REQUEST_STATE_CODEC_H
 
-#include "../config/app_config.h"
-#include "../controllers/app_controller.h"
+#include "../history/history.h"
+#include "request_state.h"
 
-#include <adwaita.h>
+G_BEGIN_DECLS
 
-void on_activate(GtkApplication *app, gpointer user_data) {
-  AppConfig *cfg = (AppConfig *)user_data;
-  AppController *controller = app_controller_new(ADW_APPLICATION(app), cfg);
-  app_controller_present(controller);
-}
+RequestState *request_state_from_history_entry(const HistoryEntry *entry);
+HistoryEntry *history_entry_from_request_state(const RequestState *state);
+
+G_END_DECLS
+
+#endif

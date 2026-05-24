@@ -21,15 +21,25 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#include "app.h"
+#ifndef HISTORY_CONTROLLER_H
+#define HISTORY_CONTROLLER_H
 
-#include "../config/app_config.h"
-#include "../controllers/app_controller.h"
+#include "../ui/views/history_view.h"
+#include "../ui/views/request_view.h"
+#include "../ui/views/response_view.h"
 
-#include <adwaita.h>
+#include <glib-object.h>
 
-void on_activate(GtkApplication *app, gpointer user_data) {
-  AppConfig *cfg = (AppConfig *)user_data;
-  AppController *controller = app_controller_new(ADW_APPLICATION(app), cfg);
-  app_controller_present(controller);
-}
+G_BEGIN_DECLS
+
+#define HISTORY_TYPE_CONTROLLER (history_controller_get_type())
+G_DECLARE_FINAL_TYPE(HistoryController, history_controller, HISTORY, CONTROLLER,
+                     GObject)
+
+HistoryController *history_controller_new(HistoryView *history_view,
+                                          RequestView *request_view,
+                                          ResponseView *response_view);
+
+G_END_DECLS
+
+#endif

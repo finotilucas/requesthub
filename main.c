@@ -25,8 +25,8 @@
 #include "src/core/app.h"
 #include "src/http/http_pool.h"
 
+#include <adwaita.h>
 #include <curl/curl.h>
-#include <gtk/gtk.h>
 
 int main(int argc, char **argv) {
   curl_global_init(CURL_GLOBAL_ALL);
@@ -34,8 +34,17 @@ int main(int argc, char **argv) {
 
   AppConfig *cfg = app_config_new();
 
-  GtkApplication *app =
-      gtk_application_new(cfg->app_id, G_APPLICATION_DEFAULT_FLAGS);
+  /* Bootstrap GTK so we can clear gtk-application-prefer-dark-theme before
+   * libadwaita reads it. The user's gtk-4.0/settings.ini may carry that flag
+   * (common on KDE), and libadwaita prints a deprecation warning on every
+   * startup when it finds it set. AdwStyleManager owns the color scheme via
+   * apply_global_theming(); clear the legacy flag pre-emptively. */
+  gtk_init();
+  g_object_set(gtk_settings_get_default(),
+               "gtk-application-prefer-dark-theme", FALSE, NULL);
+
+  AdwApplication *app =
+      adw_application_new(cfg->app_id, G_APPLICATION_DEFAULT_FLAGS);
 
   g_signal_connect(app, "activate", G_CALLBACK(on_activate), cfg);
 

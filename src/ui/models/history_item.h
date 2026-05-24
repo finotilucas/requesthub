@@ -21,16 +21,21 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#pragma once
+#ifndef HISTORY_ITEM_H
+#define HISTORY_ITEM_H
 
 #include "../../history/history.h"
-#include <gtk/gtk.h>
 
-#define HISTORY_SIDEBAR_WIDTH 260
+#include <glib-object.h>
 
-#define HISTORY_TYPE_SIDEBAR (history_sidebar_get_type())
-G_DECLARE_FINAL_TYPE(HistorySidebar, history_sidebar, HISTORY, SIDEBAR, GtkBox)
+G_BEGIN_DECLS
 
-HistorySidebar *history_sidebar_new(void);
-void history_sidebar_record(HistorySidebar *self, HistoryEntry *entry);
-HistoryStore *history_sidebar_get_store(HistorySidebar *self);
+#define HISTORY_TYPE_ITEM (history_item_get_type())
+G_DECLARE_FINAL_TYPE(HistoryItem, history_item, HISTORY, ITEM, GObject)
+
+HistoryItem *history_item_new(HistoryEntry *entry);
+HistoryEntry *history_item_get_entry(HistoryItem *self);
+
+G_END_DECLS
+
+#endif

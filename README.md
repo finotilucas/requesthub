@@ -1,4 +1,4 @@
-# RequestHub
+# RequestHub (v0.1.0)
 
 A native HTTP client for Linux, written in C against GTK 4 and libcurl.
 RequestHub provides the request/response workflow familiar from tools like
@@ -17,8 +17,10 @@ The implementation is built around a few explicit choices:
 
 - A long-lived libcurl connection pool keeps TCP, TLS and HTTP/2 state hot
   across requests issued in the same session.
-- All UI is rendered through native GTK 4 widgets, with GtkSourceView 5
-  providing syntax-highlighted request/response editing.
+- The UI is built on native GTK 4 widgets with libadwaita for the
+  adaptive shell (`AdwOverlaySplitView` sidebar, `AdwBreakpoint`-driven
+  responsive layout, `AdwViewStack` tabs), and GtkSourceView 5 for
+  syntax-highlighted request/response editing.
 - Persistent state is written under `$XDG_DATA_HOME/requesthub/` in
   human-readable JSON, with conservative file permissions and explicit
   retention bounds.
@@ -47,6 +49,7 @@ All dependencies are resolved through `pkg-config`. RequestHub requires:
 | --------------- | ------- | -------------------------------------- |
 | GCC or Clang    | C11     | built with `-std=gnu11`                |
 | GTK             | 4.0     | required                               |
+| libadwaita      | 1.4     | adaptive shell                         |
 | GtkSourceView   | 5.0     | required                               |
 | GLib            | 2.76    | used transitively                      |
 | libcurl         | 7.78    | HTTP/2 must be enabled at build time   |
@@ -58,19 +61,22 @@ Examples of installing the development packages:
 
 ```sh
 # Debian / Ubuntu
-apt install build-essential pkg-config libgtk-4-dev libgtksourceview-5-dev \
-            libcurl4-openssl-dev libxml2-dev libyaml-dev libcjson-dev
+sudo apt install build-essential pkg-config libgtk-4-dev libadwaita-1-dev \
+            libgtksourceview-5-dev libcurl4-openssl-dev libxml2-dev \
+            libyaml-dev libcjson-dev
 
 # Arch Linux
-pacman -S base-devel gtk4 gtksourceview5 curl libxml2 libyaml cjson
-
-# Void Linux
-xbps-install -S base-devel pkg-config gtk4-devel gtksourceview5-devel \
-                libcurl-devel libxml2-devel libyaml-devel cjson-devel
+sudo pacman -S base-devel gtk4 libadwaita gtksourceview5 curl libxml2 libyaml cjson
 
 # Fedora
-dnf install gcc make pkgconf-pkg-config gtk4-devel gtksourceview5-devel \
-            libcurl-devel libxml2-devel libyaml-devel cjson-devel
+sudo dnf install gcc make pkgconf-pkg-config gtk4-devel libadwaita-devel \
+            gtksourceview5-devel libcurl-devel libxml2-devel libyaml-devel \
+            cjson-devel
+
+# Void Linux
+sudo xbps-install -S base-devel pkg-config gtk4-devel libadwaita-devel \
+                gtksourceview5-devel libcurl-devel libxml2-devel libyaml-devel \
+                cjson-devel
 ```
 
 You can verify that the toolchain sees every dependency with:
@@ -100,7 +106,7 @@ A self-contained, distributable AppImage can be produced with:
 make appimage                       # build/RequestHub-<version>-x86_64.AppImage
 make appimage VERSION=0.1.0         # override the version string
 ```
-
+ 
 The version is otherwise derived from `git describe --tags --always --dirty`.
 
 The release binary inside the AppImage is compiled with

@@ -25,10 +25,11 @@
 
 struct _RequestTabs {
   GtkBox parent_instance;
-  GtkWidget *notebook;
+  AdwViewStack *stack;
+  AdwViewSwitcher *switcher;
 };
 
-G_DEFINE_TYPE(RequestTabs, request_tabs, GTK_TYPE_BOX)
+G_DEFINE_FINAL_TYPE(RequestTabs, request_tabs, GTK_TYPE_BOX)
 
 static void request_tabs_class_init(RequestTabsClass *klass) { (void)klass; }
 
@@ -41,25 +42,33 @@ static void request_tabs_init(RequestTabs *self) {
   gtk_widget_set_margin_top(GTK_WIDGET(self), 5);
   gtk_widget_set_margin_bottom(GTK_WIDGET(self), 5);
 
-  self->notebook = gtk_notebook_new();
-  gtk_notebook_set_scrollable(GTK_NOTEBOOK(self->notebook), TRUE);
-  gtk_notebook_set_show_border(GTK_NOTEBOOK(self->notebook), TRUE);
+  self->stack = ADW_VIEW_STACK(adw_view_stack_new());
+  gtk_widget_set_vexpand(GTK_WIDGET(self->stack), TRUE);
+  gtk_widget_set_hexpand(GTK_WIDGET(self->stack), TRUE);
 
-  gtk_widget_set_vexpand(self->notebook, TRUE);
-  gtk_widget_set_hexpand(self->notebook, TRUE);
+  self->switcher = ADW_VIEW_SWITCHER(adw_view_switcher_new());
+  adw_view_switcher_set_policy(self->switcher, ADW_VIEW_SWITCHER_POLICY_WIDE);
+  adw_view_switcher_set_stack(self->switcher, self->stack);
+  gtk_widget_set_halign(GTK_WIDGET(self->switcher), GTK_ALIGN_CENTER);
 
-  gtk_box_append(GTK_BOX(self), self->notebook);
+  gtk_box_append(GTK_BOX(self), GTK_WIDGET(self->switcher));
+  gtk_box_append(GTK_BOX(self), GTK_WIDGET(self->stack));
 }
 
 RequestTabs *request_tabs_new(void) {
   return g_object_new(REQUEST_TYPE_TABS, NULL);
 }
 
-void request_tabs_add_view(RequestTabs *self, GtkWidget *view_content,
-                           const char *title) {
+void request_tabs_add_view(RequestTabs *self, GtkWidget *content,
+                           const char *name, const char *title,
+                           const char *icon_name) {
   g_return_if_fail(REQUEST_IS_TABS(self));
-  g_return_if_fail(GTK_IS_WIDGET(view_content));
+  g_return_if_fail(GTK_IS_WIDGET(content));
+  g_return_if_fail(name != NULL);
 
-  GtkWidget *label = gtk_label_new(title);
-  gtk_notebook_append_page(GTK_NOTEBOOK(self->notebook), view_content, label);
+  AdwViewStackPage *page =
+      adw_view_stack_add_titled(self->stack, content, name, title);
+  if (icon_name != NULL) {
+    adw_view_stack_page_set_icon_name(page, icon_name);
+  }
 }
