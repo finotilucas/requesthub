@@ -1,6 +1,4 @@
 /*******************************************************************************
- * REQUEST HUB
- * =============================================================================
  * Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
  *
  * This file is part of RequestHub.
@@ -21,8 +19,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#ifndef HISTORY_CONTROLLER_H
-#define HISTORY_CONTROLLER_H
+#pragma once
 
 #include "../ui/views/history_view.h"
 #include "../ui/views/request_view.h"
@@ -41,5 +38,3 @@ HistoryController *history_controller_new(HistoryView *history_view,
                                           ResponseView *response_view);
 
 G_END_DECLS
-
-#endif

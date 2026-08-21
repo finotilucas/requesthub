@@ -1,6 +1,4 @@
 /*******************************************************************************
- * REQUEST HUB
- * =============================================================================
  * Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
  *
  * This file is part of RequestHub.
@@ -84,26 +82,37 @@ static HttpRequest *http_request_from_state(const RequestState *state) {
 
 static void on_request_finished(GObject *source, GAsyncResult *res,
                                 gpointer user_data) {
-  AsyncRequestData *rd = user_data;
+  AsyncRequestData *async_data = user_data;
   GError *error = NULL;
   HttpResponse *resp =
       http_service_send_finish(HTTP_SERVICE(source), res, &error);
 
+  RequestController *self = g_weak_ref_get(&async_data->controller_ref);
+
   if (error != NULL) {
+    if (!g_error_matches(error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
+      g_warning("request failed: %s", error->message);
+      if (self != NULL && self->request_view != NULL) {
+        RequestTopBar *bar = request_view_get_top_bar(self->request_view);
+        if (bar != NULL) {
+          request_top_bar_set_loading(bar, FALSE);
+        }
+      }
+    }
     g_clear_error(&error);
+    g_clear_object(&self);
     if (resp != NULL) {
       http_response_free(resp);
     }
-    async_request_data_free(rd);
+    async_request_data_free(async_data);
     return;
   }
 
-  RequestController *self = g_weak_ref_get(&rd->controller_ref);
   if (self == NULL) {
     if (resp != NULL) {
       http_response_free(resp);
     }
-    async_request_data_free(rd);
+    async_request_data_free(async_data);
     return;
   }
 
@@ -118,17 +127,17 @@ static void on_request_finished(GObject *source, GAsyncResult *res,
     }
   }
 
-  if (rd->history_entry != NULL && self->history_service != NULL) {
-    history_entry_apply_response(rd->history_entry, resp);
-    history_service_record(self->history_service, rd->history_entry);
-    rd->history_entry = NULL;
+  if (async_data->history_entry != NULL && self->history_service != NULL) {
+    history_entry_apply_response(async_data->history_entry, resp);
+    history_service_record(self->history_service, async_data->history_entry);
+    async_data->history_entry = NULL;
   }
 
   g_object_unref(self);
   if (resp != NULL) {
     http_response_free(resp);
   }
-  async_request_data_free(rd);
+  async_request_data_free(async_data);
 }
 
 void request_controller_send(RequestController *self) {
@@ -139,18 +148,20 @@ void request_controller_send(RequestController *self) {
 
   RequestState *state = request_view_capture_state(self->request_view);
   if (state == NULL) {
+    g_warning("send aborted: could not capture request state");
     return;
   }
 
   HttpRequest *req = http_request_from_state(state);
   if (req == NULL) {
+    g_warning("send aborted: request needs a URL");
     request_state_free(state);
     return;
   }
 
-  BodyPanel *bv = request_view_get_body_panel(self->request_view);
-  if (bv != NULL) {
-    body_panel_apply_to_request(bv, req);
+  BodyPanel *body_panel = request_view_get_body_panel(self->request_view);
+  if (body_panel != NULL) {
+    body_panel_apply_to_request(body_panel, req);
   }
 
   HistoryEntry *entry = history_entry_from_request_state(state);
@@ -167,12 +178,12 @@ void request_controller_send(RequestController *self) {
     request_top_bar_set_loading(bar, TRUE);
   }
 
-  AsyncRequestData *rd = g_new0(AsyncRequestData, 1);
-  rd->history_entry = entry;
-  g_weak_ref_init(&rd->controller_ref, self);
+  AsyncRequestData *async_data = g_new0(AsyncRequestData, 1);
+  async_data->history_entry = entry;
+  g_weak_ref_init(&async_data->controller_ref, self);
 
   http_service_send_async(self->http_service, req, self->cancellable,
-                          on_request_finished, rd);
+                          on_request_finished, async_data);
 }
 
 static void on_top_bar_send_clicked(RequestTopBar *bar, gpointer user_data) {

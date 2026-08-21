@@ -1,6 +1,4 @@
 /*******************************************************************************
- * REQUEST HUB
- * =============================================================================
  * Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
  *
  * This file is part of RequestHub.
@@ -21,8 +19,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#ifndef REQUEST_CONTROLLER_H
-#define REQUEST_CONTROLLER_H
+#pragma once
 
 #include "../services/history_service.h"
 #include "../services/http_service.h"
@@ -45,5 +42,3 @@ RequestController *request_controller_new(RequestView *request_view,
 void request_controller_send(RequestController *self);
 
 G_END_DECLS
-
-#endif
