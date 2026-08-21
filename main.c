@@ -39,11 +39,6 @@ int main(int argc, char **argv) {
   }
   http_pool_init();
 
-  /* Bootstrap GTK so we can clear gtk-application-prefer-dark-theme before
-   * libadwaita reads it. The user's gtk-4.0/settings.ini may carry that flag
-   * (common on KDE), and libadwaita prints a deprecation warning on every
-   * startup when it finds it set. AdwStyleManager owns the color scheme via
-   * setup_appearance(); clear the legacy flag pre-emptively. */
   gtk_init();
   g_object_set(gtk_settings_get_default(),
                "gtk-application-prefer-dark-theme", FALSE, NULL);
