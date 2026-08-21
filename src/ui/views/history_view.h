@@ -1,6 +1,4 @@
 /*******************************************************************************
- * REQUEST HUB
- * =============================================================================
  * Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
  *
  * This file is part of RequestHub.
@@ -21,8 +19,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#ifndef HISTORY_VIEW_H
-#define HISTORY_VIEW_H
+#pragma once
 
 #include "../../services/history_service.h"
 
@@ -30,7 +27,6 @@
 
 G_BEGIN_DECLS
 
-#define HISTORY_VIEW_DEFAULT_WIDTH 260
 
 #define HISTORY_TYPE_VIEW (history_view_get_type())
 G_DECLARE_FINAL_TYPE(HistoryView, history_view, HISTORY, VIEW, GtkBox)
@@ -38,5 +34,3 @@ G_DECLARE_FINAL_TYPE(HistoryView, history_view, HISTORY, VIEW, GtkBox)
 HistoryView *history_view_new(HistoryService *service);
 
 G_END_DECLS
-
-#endif
