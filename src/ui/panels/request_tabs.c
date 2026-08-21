@@ -1,6 +1,4 @@
 /*******************************************************************************
- * REQUEST HUB
- * =============================================================================
  * Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
  *
  * This file is part of RequestHub.
@@ -26,7 +24,6 @@
 struct _RequestTabs {
   GtkBox parent_instance;
   AdwViewStack *stack;
-  AdwViewSwitcher *switcher;
 };
 
 G_DEFINE_FINAL_TYPE(RequestTabs, request_tabs, GTK_TYPE_BOX)
@@ -46,12 +43,12 @@ static void request_tabs_init(RequestTabs *self) {
   gtk_widget_set_vexpand(GTK_WIDGET(self->stack), TRUE);
   gtk_widget_set_hexpand(GTK_WIDGET(self->stack), TRUE);
 
-  self->switcher = ADW_VIEW_SWITCHER(adw_view_switcher_new());
-  adw_view_switcher_set_policy(self->switcher, ADW_VIEW_SWITCHER_POLICY_WIDE);
-  adw_view_switcher_set_stack(self->switcher, self->stack);
-  gtk_widget_set_halign(GTK_WIDGET(self->switcher), GTK_ALIGN_CENTER);
+  AdwViewSwitcher *switcher = ADW_VIEW_SWITCHER(adw_view_switcher_new());
+  adw_view_switcher_set_policy(switcher, ADW_VIEW_SWITCHER_POLICY_WIDE);
+  adw_view_switcher_set_stack(switcher, self->stack);
+  gtk_widget_set_halign(GTK_WIDGET(switcher), GTK_ALIGN_CENTER);
 
-  gtk_box_append(GTK_BOX(self), GTK_WIDGET(self->switcher));
+  gtk_box_append(GTK_BOX(self), GTK_WIDGET(switcher));
   gtk_box_append(GTK_BOX(self), GTK_WIDGET(self->stack));
 }
 

@@ -1,6 +1,4 @@
 /*******************************************************************************
- * REQUEST HUB
- * =============================================================================
  * Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
  *
  * This file is part of RequestHub.
@@ -34,7 +32,7 @@ struct _KvListView {
   gboolean add_prepends;
 };
 
-G_DEFINE_TYPE(KvListView, kv_list_view, GTK_TYPE_BOX)
+G_DEFINE_FINAL_TYPE(KvListView, kv_list_view, GTK_TYPE_BOX)
 
 typedef struct {
   GtkWidget *key_entry;
@@ -42,8 +40,6 @@ typedef struct {
   GtkWidget *action_widget;
   gboolean editable;
 } KvRow;
-
-static void kv_row_free(gpointer data) { g_free(data); }
 
 static void row_validate(KvRow *row) {
   if (!row->editable) {
@@ -63,10 +59,9 @@ static void on_key_entry_changed(GtkEditable *editable, gpointer user_data) {
 }
 
 static void on_remove_button_clicked(GtkButton *button, gpointer user_data) {
-  (void)button;
-  GtkWidget *hbox = GTK_WIDGET(user_data);
+  (void)user_data;
   GtkWidget *list_box_row =
-      gtk_widget_get_ancestor(hbox, GTK_TYPE_LIST_BOX_ROW);
+      gtk_widget_get_ancestor(GTK_WIDGET(button), GTK_TYPE_LIST_BOX_ROW);
   if (list_box_row == NULL) {
     return;
   }
@@ -77,12 +72,12 @@ static void on_remove_button_clicked(GtkButton *button, gpointer user_data) {
   }
 }
 
-static GtkWidget *build_remove_button(GtkWidget *hbox) {
+static GtkWidget *build_remove_button(void) {
   GtkWidget *button = gtk_button_new_from_icon_name("user-trash-symbolic");
   gtk_widget_add_css_class(button, "flat");
   gtk_widget_add_css_class(button, "kv-remove-button");
   g_signal_connect(button, "clicked", G_CALLBACK(on_remove_button_clicked),
-                   hbox);
+                   NULL);
   return button;
 }
 
@@ -94,6 +89,19 @@ static GtkWidget *build_info_icon(const char *tooltip) {
     gtk_widget_set_tooltip_text(icon, tooltip);
   }
   return icon;
+}
+
+static GtkWidget *build_kv_entry(const char *placeholder, const char *text,
+                                 gboolean editable) {
+  GtkWidget *entry = gtk_entry_new();
+  gtk_entry_set_placeholder_text(GTK_ENTRY(entry), placeholder);
+  if (text != NULL) {
+    gtk_editable_set_text(GTK_EDITABLE(entry), text);
+  }
+  gtk_editable_set_editable(GTK_EDITABLE(entry), editable);
+  gtk_widget_set_hexpand(entry, TRUE);
+  gtk_widget_set_halign(entry, GTK_ALIGN_FILL);
+  return entry;
 }
 
 static void append_row(KvListView *self, const char *key, const char *value,
@@ -108,34 +116,17 @@ static void append_row(KvListView *self, const char *key, const char *value,
   GtkWidget *entries_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
   gtk_widget_set_hexpand(entries_box, TRUE);
 
-  GtkWidget *key_entry = gtk_entry_new();
-  GtkWidget *value_entry = gtk_entry_new();
-
-  gtk_entry_set_placeholder_text(GTK_ENTRY(key_entry), self->key_placeholder);
-  gtk_entry_set_placeholder_text(GTK_ENTRY(value_entry),
-                                 self->value_placeholder);
-
-  if (key != NULL) {
-    gtk_editable_set_text(GTK_EDITABLE(key_entry), key);
-  }
-  if (value != NULL) {
-    gtk_editable_set_text(GTK_EDITABLE(value_entry), value);
-  }
-
-  gtk_editable_set_editable(GTK_EDITABLE(key_entry), editable);
-  gtk_editable_set_editable(GTK_EDITABLE(value_entry), editable);
-
-  gtk_widget_set_hexpand(key_entry, TRUE);
-  gtk_widget_set_hexpand(value_entry, TRUE);
-  gtk_widget_set_halign(key_entry, GTK_ALIGN_FILL);
-  gtk_widget_set_halign(value_entry, GTK_ALIGN_FILL);
+  GtkWidget *key_entry =
+      build_kv_entry(self->key_placeholder, key, editable);
   gtk_widget_set_margin_end(key_entry, 4);
+  GtkWidget *value_entry =
+      build_kv_entry(self->value_placeholder, value, editable);
 
   gtk_box_append(GTK_BOX(entries_box), key_entry);
   gtk_box_append(GTK_BOX(entries_box), value_entry);
 
   GtkWidget *action_widget =
-      editable ? build_remove_button(hbox) : build_info_icon(fixed_tooltip);
+      editable ? build_remove_button() : build_info_icon(fixed_tooltip);
   gtk_widget_set_size_request(action_widget, KV_ACTION_MIN_WIDTH, -1);
   gtk_widget_set_hexpand(action_widget, FALSE);
   gtk_widget_set_halign(action_widget, GTK_ALIGN_END);
@@ -149,7 +140,7 @@ static void append_row(KvListView *self, const char *key, const char *value,
   row->action_widget = action_widget;
   row->editable = editable;
 
-  g_object_set_data_full(G_OBJECT(hbox), KV_ROW_DATA_KEY, row, kv_row_free);
+  g_object_set_data_full(G_OBJECT(hbox), KV_ROW_DATA_KEY, row, g_free);
 
   if (editable) {
     g_signal_connect(key_entry, "changed",
@@ -262,7 +253,7 @@ static void kv_list_view_init(KvListView *self) {
   gtk_widget_set_margin_bottom(GTK_WIDGET(self), 10);
 }
 
-static void build_chrome(KvListView *self, const KvListViewConfig *config) {
+static void build_header_and_list(KvListView *self, const KvListViewConfig *config) {
   GtkWidget *title_label = gtk_label_new(config->title);
   gtk_label_set_xalign(GTK_LABEL(title_label), 0.0);
   gtk_widget_set_margin_top(title_label, 10);
@@ -327,7 +318,7 @@ KvListView *kv_list_view_new(const KvListViewConfig *config) {
       config->value_placeholder != NULL ? config->value_placeholder : "");
   self->add_prepends = config->add_prepends;
 
-  build_chrome(self, config);
+  build_header_and_list(self, config);
 
   return self;
 }
