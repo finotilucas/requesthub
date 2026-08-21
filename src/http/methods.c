@@ -1,6 +1,4 @@
 /*******************************************************************************
- * REQUEST HUB
- * =============================================================================
  * Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
  *
  * This file is part of RequestHub.
@@ -27,7 +25,7 @@
 static const char *methods_strings[] = {"GET",   "POST", "PUT",     "DELETE",
                                         "PATCH", "HEAD", "OPTIONS", NULL};
 
-const char *method_to_string(HttpMethods method) {
+const char *http_method_to_string(HttpMethod method) {
   if ((unsigned)method <= (unsigned)HTTP_OPTIONS) {
     return methods_strings[method];
   }

@@ -1,6 +1,4 @@
 /*******************************************************************************
- * REQUEST HUB
- * =============================================================================
  * Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
  *
  * This file is part of RequestHub.
@@ -25,10 +23,9 @@
 
 #include <glib.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <string.h>
 
-HttpResponse *http_response_create(void) {
+HttpResponse *http_response_new(void) {
   HttpResponse *response = g_new0(HttpResponse, 1);
 
   response->body = g_malloc(1);
@@ -40,6 +37,25 @@ HttpResponse *http_response_create(void) {
   return response;
 }
 
+HttpResponse *http_response_new_snapshot(long http_status, double total_time,
+                                         const char *body,
+                                         const char *content_type) {
+  HttpResponse *response = http_response_new();
+  response->http_status = http_status;
+  response->total_time = total_time;
+
+  if (body != NULL) {
+    g_free(response->body);
+    response->body = g_strdup(body);
+    response->body_size = strlen(response->body);
+  }
+  if (content_type != NULL) {
+    response->content_type = g_strdup(content_type);
+  }
+
+  return response;
+}
+
 void http_response_free(HttpResponse *response) {
   if (response == NULL) {
     return;
@@ -47,13 +63,6 @@ void http_response_free(HttpResponse *response) {
 
   g_free(response->body);
   g_free(response->content_type);
-  g_free(response->header_location);
-  g_free(response->etag);
-
-  if (response->all_headers != NULL) {
-    curl_slist_free_all(response->all_headers);
-  }
-
   g_free(response);
 }
 
@@ -64,100 +73,14 @@ size_t http_response_write_callback(void *contents, size_t size, size_t nmemb,
   }
 
   size_t realsize = size * nmemb;
-  HttpResponse *response = (HttpResponse *)userp;
+  GString *body = (GString *)userp;
 
-  if (response->body_size + realsize > HTTP_RESPONSE_MAX_BODY_SIZE) {
-    fprintf(stderr, "Error: Response exceeds the limit of %d bytes\n",
-            HTTP_RESPONSE_MAX_BODY_SIZE);
+  if (body->len + realsize > HTTP_RESPONSE_MAX_BODY_SIZE) {
+    g_message("response body exceeds the %d byte limit; transfer aborted",
+              HTTP_RESPONSE_MAX_BODY_SIZE);
     return 0;
   }
 
-  response->body =
-      g_realloc(response->body, response->body_size + realsize + 1);
-  memcpy(&(response->body[response->body_size]), contents, realsize);
-  response->body_size += realsize;
-  response->body[response->body_size] = '\0';
-
+  g_string_append_len(body, contents, (gssize)realsize);
   return realsize;
-}
-
-static gboolean header_line_starts_with(const char *line, size_t line_len,
-                                        const char *prefix) {
-  size_t prefix_len = strlen(prefix);
-  if (line_len < prefix_len) {
-    return FALSE;
-  }
-  return g_ascii_strncasecmp(line, prefix, prefix_len) == 0;
-}
-
-static gchar *header_extract_value(const char *line, size_t line_len,
-                                   size_t prefix_len) {
-  const char *start = line + prefix_len;
-  size_t remaining = line_len - prefix_len;
-  while (remaining > 0 && (*start == ' ' || *start == '\t')) {
-    start++;
-    remaining--;
-  }
-  while (remaining > 0 &&
-         (start[remaining - 1] == '\r' || start[remaining - 1] == '\n' ||
-          start[remaining - 1] == ' ' || start[remaining - 1] == '\t')) {
-    remaining--;
-  }
-  if (remaining == 0) {
-    return NULL;
-  }
-  return g_strndup(start, remaining);
-}
-
-size_t http_response_header_callback(char *buffer, size_t size, size_t nitems,
-                                     void *userp) {
-  if (size > 0 && nitems > SIZE_MAX / size) {
-    return 0;
-  }
-
-  size_t total = size * nitems;
-  HttpResponse *response = (HttpResponse *)userp;
-
-  if (total >= 5 && g_ascii_strncasecmp(buffer, "HTTP/", 5) == 0) {
-    if (response->all_headers != NULL) {
-      curl_slist_free_all(response->all_headers);
-      response->all_headers = NULL;
-    }
-    g_free(response->header_location);
-    response->header_location = NULL;
-    g_free(response->etag);
-    response->etag = NULL;
-    return total;
-  }
-
-  if (total <= 2) {
-    return total;
-  }
-
-  size_t line_len = total;
-  while (line_len > 0 &&
-         (buffer[line_len - 1] == '\r' || buffer[line_len - 1] == '\n')) {
-    line_len--;
-  }
-  if (line_len == 0) {
-    return total;
-  }
-
-  gchar *line = g_strndup(buffer, line_len);
-  struct curl_slist *appended = curl_slist_append(response->all_headers, line);
-  if (appended != NULL) {
-    response->all_headers = appended;
-  }
-  g_free(line);
-
-  if (header_line_starts_with(buffer, line_len, "Location:")) {
-    g_free(response->header_location);
-    response->header_location =
-        header_extract_value(buffer, line_len, strlen("Location:"));
-  } else if (header_line_starts_with(buffer, line_len, "ETag:")) {
-    g_free(response->etag);
-    response->etag = header_extract_value(buffer, line_len, strlen("ETag:"));
-  }
-
-  return total;
 }

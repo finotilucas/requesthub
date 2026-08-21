@@ -1,6 +1,4 @@
 /*******************************************************************************
- * REQUEST HUB
- * =============================================================================
  * Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
  *
  * This file is part of RequestHub.
@@ -68,7 +66,6 @@ static void test_get_returns_200_with_json_body(void) {
   g_assert_nonnull(res->body);
   g_assert_cmpuint(res->body_size, >, 0);
   g_assert_nonnull(strstr(res->body, "\"id\""));
-  g_assert_nonnull(res->all_headers);
 
   http_response_free(res);
   http_request_free(req);
@@ -109,7 +106,7 @@ static void test_post_creates_resource(void) {
   HttpRequest *req = http_request_new(BASE_URL "/posts", HTTP_POST);
   http_request_add_header(req, "Content-Type", "application/json");
   http_request_set_body(
-      req, "{\"title\":\"foo\",\"body\":\"bar\",\"userId\":1}");
+      req, "{\"title\":\"foo\",\"body\":\"bar\",\"userId\":1}", NULL);
   HttpResponse *res = http_request_perform(req);
 
   g_assert_nonnull(res);
@@ -126,7 +123,7 @@ static void test_body_methods_send_payload(void) {
 
   const struct {
     const char *label;
-    HttpMethods method;
+    HttpMethod method;
     const char *body;
     const char *expected_echo;
   } cases[] = {
@@ -139,7 +136,7 @@ static void test_body_methods_send_payload(void) {
   for (size_t i = 0; i < G_N_ELEMENTS(cases); i++) {
     HttpRequest *req = http_request_new(BASE_URL "/posts/1", cases[i].method);
     http_request_add_header(req, "Content-Type", "application/json");
-    http_request_set_body(req, cases[i].body);
+    http_request_set_body(req, cases[i].body, NULL);
     HttpResponse *res = http_request_perform(req);
 
     g_assert_nonnull(res);

@@ -1,6 +1,4 @@
 /*******************************************************************************
- * REQUEST HUB
- * =============================================================================
  * Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
  *
  * This file is part of RequestHub.
@@ -21,8 +19,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#ifndef REQUEST_H
-#define REQUEST_H
+#pragma once
 
 #include "methods.h"
 
@@ -31,26 +28,23 @@
 typedef struct {
   char *url;
   char *body;
-  GPtrArray *headers;
-  char **query_params;
-  char *auth_header;
+  char *body_content_type;
+  GPtrArray *headers;      /* pares k,v achatados */
+  GPtrArray *query_params; /* strings "k=v" ja URL-encoded */
   long timeout;
   long connect_timeout;
   long follow_redirects;
   long max_redirects;
   long verify_ssl;
-  int query_count;
-  HttpMethods method;
+  HttpMethod method;
 } HttpRequest;
 
-HttpRequest *http_request_new(const char *url, HttpMethods method);
+HttpRequest *http_request_new(const char *url, HttpMethod method);
 
 void http_request_free(HttpRequest *request);
 
-HttpRequest *http_request_add_header(HttpRequest *request, const char *key,
-                                     const char *value);
-
-HttpRequest *http_request_remove_header(HttpRequest *request, const char *key);
+void http_request_add_header(HttpRequest *request, const char *key,
+                             const char *value);
 
 guint http_request_headers_count(const HttpRequest *request);
 
@@ -58,25 +52,10 @@ const char *http_request_header_key(const HttpRequest *request, guint index);
 
 const char *http_request_header_value(const HttpRequest *request, guint index);
 
-HttpRequest *http_request_set_body(HttpRequest *request, const char *body);
+/* content_type (MIME) e opcional; quando presente e o request tem body, vira
+ * o header Content-Type default se o usuario nao definiu um. */
+void http_request_set_body(HttpRequest *request, const char *body,
+                           const char *content_type);
 
-HttpRequest *http_request_add_query_param(HttpRequest *request, const char *key,
-                                          const char *value);
-
-HttpRequest *http_request_remove_query_param(HttpRequest *request,
-                                             const char *key);
-
-HttpRequest *http_request_set_timeout(HttpRequest *request, long seconds);
-
-HttpRequest *http_request_set_connect_timeout(HttpRequest *request,
-                                              long seconds);
-
-HttpRequest *http_request_set_verify_ssl(HttpRequest *request, int verify);
-
-HttpRequest *http_request_set_bearer_token(HttpRequest *request,
-                                           const char *token);
-
-HttpRequest *http_request_follow_redirects(HttpRequest *request, int follow,
-                                           int max);
-
-#endif
+void http_request_add_query_param(HttpRequest *request, const char *key,
+                                  const char *value);
