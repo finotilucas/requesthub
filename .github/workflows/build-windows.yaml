@@ -8,12 +8,14 @@ jobs:
   build:
     runs-on: windows-latest
 
-    # zig cc is the compiler (no MSYS2 gcc); SAN_CC falls back to zig cc too
-    # since sanitizers are disabled on Windows anyway. pkgconf suppresses
-    # /mingw64/include and /mingw64/lib as "system" dirs, but zig does not
-    # search them on its own — the two PKG_CONFIG vars disable that.
+    # zig cc is the compiler (no MSYS2 gcc). Zig's native Windows target is
+    # the msvc ABI, which looks for gtk-4.lib and never libgtk-4.dll.a — the
+    # MSYS2 stack is MinGW, so pin the gnu target explicitly. pkgconf also
+    # suppresses /mingw64/{include,lib} as "system" dirs that zig does not
+    # search on its own — the two PKG_CONFIG vars disable that.
     env:
-      SAN_CC: zig cc
+      CC: zig cc -target x86_64-windows-gnu
+      SAN_CC: zig cc -target x86_64-windows-gnu
       PKG_CONFIG_ALLOW_SYSTEM_CFLAGS: 1
       PKG_CONFIG_ALLOW_SYSTEM_LIBS: 1
 
@@ -43,6 +45,7 @@ jobs:
             mingw-w64-x86_64-libyaml
             mingw-w64-x86_64-cjson
             mingw-w64-x86_64-curl
+            mingw-w64-x86_64-vulkan-loader
 
       - run: make deps-check
       - run: make info
