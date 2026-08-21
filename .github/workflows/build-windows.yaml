@@ -9,9 +9,13 @@ jobs:
     runs-on: windows-latest
 
     # zig cc is the compiler (no MSYS2 gcc); SAN_CC falls back to zig cc too
-    # since sanitizers are disabled on Windows anyway.
+    # since sanitizers are disabled on Windows anyway. pkgconf suppresses
+    # /mingw64/include and /mingw64/lib as "system" dirs, but zig does not
+    # search them on its own — the two PKG_CONFIG vars disable that.
     env:
       SAN_CC: zig cc
+      PKG_CONFIG_ALLOW_SYSTEM_CFLAGS: 1
+      PKG_CONFIG_ALLOW_SYSTEM_LIBS: 1
 
     defaults:
       run:
