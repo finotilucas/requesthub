@@ -1,6 +1,4 @@
 /*******************************************************************************
- * REQUEST HUB
- * =============================================================================
  * Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
  *
  * This file is part of RequestHub.
@@ -21,37 +19,43 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#include "src/config/app_config.h"
-#include "src/core/app.h"
+#include "src/controllers/app_controller.h"
 #include "src/http/http_pool.h"
 
 #include <adwaita.h>
 #include <curl/curl.h>
 
-int main(int argc, char **argv) {
-  curl_global_init(CURL_GLOBAL_ALL);
-  http_pool_init();
+#define REQUESTHUB_APP_ID "io.github.finotilucas.requesthub"
 
-  AppConfig *cfg = app_config_new();
+static void on_app_activate(GtkApplication *app, gpointer user_data) {
+  (void)user_data;
+  app_controller_present(app_controller_new(ADW_APPLICATION(app)));
+}
+
+int main(int argc, char **argv) {
+  if (curl_global_init(CURL_GLOBAL_ALL) != CURLE_OK) {
+    g_printerr("requesthub: failed to initialize libcurl\n");
+    return 1;
+  }
+  http_pool_init();
 
   /* Bootstrap GTK so we can clear gtk-application-prefer-dark-theme before
    * libadwaita reads it. The user's gtk-4.0/settings.ini may carry that flag
    * (common on KDE), and libadwaita prints a deprecation warning on every
    * startup when it finds it set. AdwStyleManager owns the color scheme via
-   * apply_global_theming(); clear the legacy flag pre-emptively. */
+   * setup_appearance(); clear the legacy flag pre-emptively. */
   gtk_init();
   g_object_set(gtk_settings_get_default(),
                "gtk-application-prefer-dark-theme", FALSE, NULL);
 
   AdwApplication *app =
-      adw_application_new(cfg->app_id, G_APPLICATION_DEFAULT_FLAGS);
+      adw_application_new(REQUESTHUB_APP_ID, G_APPLICATION_DEFAULT_FLAGS);
 
-  g_signal_connect(app, "activate", G_CALLBACK(on_activate), cfg);
+  g_signal_connect(app, "activate", G_CALLBACK(on_app_activate), NULL);
 
   int status = g_application_run(G_APPLICATION(app), argc, argv);
 
   g_object_unref(app);
-  app_config_free(cfg);
 
   http_pool_cleanup();
   curl_global_cleanup();

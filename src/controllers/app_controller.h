@@ -1,6 +1,4 @@
 /*******************************************************************************
- * REQUEST HUB
- * =============================================================================
  * Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
  *
  * This file is part of RequestHub.
@@ -21,10 +19,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#ifndef APP_CONTROLLER_H
-#define APP_CONTROLLER_H
-
-#include "../config/app_config.h"
+#pragma once
 
 #include <adwaita.h>
 
@@ -33,12 +28,7 @@ G_BEGIN_DECLS
 #define APP_TYPE_CONTROLLER (app_controller_get_type())
 G_DECLARE_FINAL_TYPE(AppController, app_controller, APP, CONTROLLER, GObject)
 
-AppController *app_controller_new(AdwApplication *application,
-                                  AppConfig *config);
+AppController *app_controller_new(AdwApplication *application);
 void app_controller_present(AppController *self);
-void app_controller_trigger_send(AppController *self);
-void app_controller_focus_url(AppController *self);
 
 G_END_DECLS
-
-#endif

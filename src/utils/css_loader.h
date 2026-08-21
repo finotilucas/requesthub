@@ -1,6 +1,4 @@
 /*******************************************************************************
- * REQUEST HUB
- * =============================================================================
  * Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
  *
  * This file is part of RequestHub.
@@ -21,13 +19,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#ifndef CSS_H
-#define CSS_H
+#pragma once
 
-#include <gtk/gtk.h>
-
-void load_css(void);
-void watch_css_file(const char *path);
-
-
-#endif
+void css_loader_init(void);

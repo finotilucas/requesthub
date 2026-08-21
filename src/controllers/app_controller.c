@@ -1,6 +1,4 @@
 /*******************************************************************************
- * REQUEST HUB
- * =============================================================================
  * Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
  *
  * This file is part of RequestHub.
@@ -30,13 +28,17 @@
 #include "../ui/views/request_view.h"
 #include "../ui/views/response_view.h"
 #include "../utils/css_loader.h"
-#include "../utils/shortcuts_factory.h"
 #include "history_controller.h"
 #include "request_controller.h"
 
 #define APP_CTRL_DATA_KEY "app-controller"
-#define HISTORY_DEFAULT_CAPACITY 200
+#define WINDOW_TITLE "Request Hub"
+#define WINDOW_DEFAULT_WIDTH 1280
+#define WINDOW_DEFAULT_HEIGHT 768
 #define INITIAL_REQUEST_PANE_WIDTH 450
+#define SIDEBAR_MIN_WIDTH 240
+#define SIDEBAR_MAX_WIDTH 360
+#define SIDEBAR_WIDTH_FRACTION 0.25
 #define WINDOW_NARROW_BREAKPOINT "max-width: 900px"
 
 struct _AppController {
@@ -51,9 +53,8 @@ struct _AppController {
 
 G_DEFINE_FINAL_TYPE(AppController, app_controller, G_TYPE_OBJECT)
 
-static void apply_global_theming(void) {
+static void setup_appearance(void) {
   g_object_set(gtk_settings_get_default(),
-               "gtk-application-prefer-dark-theme", FALSE,
                "gtk-theme-name", "Adwaita",
                "gtk-icon-theme-name", "Adwaita", NULL);
 
@@ -61,8 +62,7 @@ static void apply_global_theming(void) {
   adw_style_manager_set_color_scheme(style_manager,
                                      ADW_COLOR_SCHEME_FORCE_DARK);
 
-  load_css();
-  watch_css_file("src/ui/styles/app.css");
+  css_loader_init();
 }
 
 static AdwOverlaySplitView *
@@ -79,9 +79,10 @@ build_workspace_split(RequestView *request_view, ResponseView *response_view,
       ADW_OVERLAY_SPLIT_VIEW(adw_overlay_split_view_new());
   adw_overlay_split_view_set_sidebar(split, GTK_WIDGET(history_view));
   adw_overlay_split_view_set_content(split, inner_paned);
-  adw_overlay_split_view_set_min_sidebar_width(split, 240);
-  adw_overlay_split_view_set_max_sidebar_width(split, 360);
-  adw_overlay_split_view_set_sidebar_width_fraction(split, 0.25);
+  adw_overlay_split_view_set_min_sidebar_width(split, SIDEBAR_MIN_WIDTH);
+  adw_overlay_split_view_set_max_sidebar_width(split, SIDEBAR_MAX_WIDTH);
+  adw_overlay_split_view_set_sidebar_width_fraction(split,
+                                                    SIDEBAR_WIDTH_FRACTION);
   adw_overlay_split_view_set_show_sidebar(split, TRUE);
 
   return split;
@@ -111,25 +112,24 @@ static void install_breakpoints(AdwApplicationWindow *window,
                                 AdwOverlaySplitView *split) {
   AdwBreakpointCondition *condition =
       adw_breakpoint_condition_parse(WINDOW_NARROW_BREAKPOINT);
-  AdwBreakpoint *bp = adw_breakpoint_new(condition);
+  AdwBreakpoint *breakpoint = adw_breakpoint_new(condition);
 
   GValue collapsed = G_VALUE_INIT;
   g_value_init(&collapsed, G_TYPE_BOOLEAN);
   g_value_set_boolean(&collapsed, TRUE);
-  adw_breakpoint_add_setter(bp, G_OBJECT(split), "collapsed", &collapsed);
+  adw_breakpoint_add_setter(breakpoint, G_OBJECT(split), "collapsed", &collapsed);
   g_value_unset(&collapsed);
 
-  adw_application_window_add_breakpoint(window, bp);
+  adw_application_window_add_breakpoint(window, breakpoint);
 }
 
 static void on_shortcut_send(GSimpleAction *action, GVariant *parameter,
                              gpointer user_data) {
   (void)action;
   (void)parameter;
-  GtkWidget *window = GTK_WIDGET(user_data);
-  AppController *self = g_object_get_data(G_OBJECT(window), APP_CTRL_DATA_KEY);
-  if (self != NULL) {
-    app_controller_trigger_send(self);
+  AppController *self = APP_CONTROLLER(user_data);
+  if (self->request_controller != NULL) {
+    request_controller_send(self->request_controller);
   }
 }
 
@@ -137,38 +137,51 @@ static void on_shortcut_focus_url(GSimpleAction *action, GVariant *parameter,
                                   gpointer user_data) {
   (void)action;
   (void)parameter;
-  GtkWidget *window = GTK_WIDGET(user_data);
-  AppController *self = g_object_get_data(G_OBJECT(window), APP_CTRL_DATA_KEY);
-  if (self != NULL) {
-    app_controller_focus_url(self);
+  AppController *self = APP_CONTROLLER(user_data);
+  if (self->request_view != NULL) {
+    request_top_bar_focus_url(request_view_get_top_bar(self->request_view));
   }
 }
 
-static void install_shortcuts(GtkApplication *app,
+static void install_shortcuts(AppController *self, GtkApplication *app,
                               GtkApplicationWindow *window) {
-  static const ShortcutEntry app_shortcuts[] = {
-      {"send_request", "<Control>Return", on_shortcut_send},
-      {"focus_url", "<Control>l", on_shortcut_focus_url},
+  static const struct {
+    const char *name;
+    const char *accel;
+    GCallback callback;
+  } shortcuts[] = {
+      {"send_request", "<Control>Return", G_CALLBACK(on_shortcut_send)},
+      {"focus_url", "<Control>l", G_CALLBACK(on_shortcut_focus_url)},
   };
-  setup_application_shortcuts(app, window, app_shortcuts,
-                              G_N_ELEMENTS(app_shortcuts));
+
+  for (gsize i = 0; i < G_N_ELEMENTS(shortcuts); i++) {
+    GSimpleAction *action = g_simple_action_new(shortcuts[i].name, NULL);
+    g_signal_connect_object(action, "activate", shortcuts[i].callback, self, 0);
+    g_action_map_add_action(G_ACTION_MAP(window), G_ACTION(action));
+    g_object_unref(action);
+
+    gchar *detailed_name = g_strdup_printf("win.%s", shortcuts[i].name);
+    const char *accels[] = {shortcuts[i].accel, NULL};
+    gtk_application_set_accels_for_action(app, detailed_name, accels);
+    g_free(detailed_name);
+  }
 }
 
-AppController *app_controller_new(AdwApplication *application,
-                                  AppConfig *config) {
+AppController *app_controller_new(AdwApplication *application) {
   g_return_val_if_fail(ADW_IS_APPLICATION(application), NULL);
-  g_return_val_if_fail(config != NULL, NULL);
 
   AppController *self = g_object_new(APP_TYPE_CONTROLLER, NULL);
 
-  apply_global_theming();
+  setup_appearance();
 
   self->http_service = http_service_new();
-  self->history_service = history_service_new(HISTORY_DEFAULT_CAPACITY);
+  self->history_service = history_service_new(0);
 
   GtkWidget *window =
       adw_application_window_new(GTK_APPLICATION(application));
-  app_config_apply_to_window(config, GTK_WINDOW(window));
+  gtk_window_set_title(GTK_WINDOW(window), WINDOW_TITLE);
+  gtk_window_set_default_size(GTK_WINDOW(window), WINDOW_DEFAULT_WIDTH,
+                              WINDOW_DEFAULT_HEIGHT);
   self->window = GTK_WINDOW(window);
 
   RequestView *request_view = request_view_new();
@@ -186,7 +199,7 @@ AppController *app_controller_new(AdwApplication *application,
   self->history_controller =
       history_controller_new(history_view, request_view, response_view);
 
-  install_shortcuts(GTK_APPLICATION(application),
+  install_shortcuts(self, GTK_APPLICATION(application),
                     GTK_APPLICATION_WINDOW(window));
   install_breakpoints(ADW_APPLICATION_WINDOW(window), split);
 
@@ -205,23 +218,6 @@ void app_controller_present(AppController *self) {
   }
 }
 
-void app_controller_trigger_send(AppController *self) {
-  g_return_if_fail(APP_IS_CONTROLLER(self));
-  if (self->request_controller != NULL) {
-    request_controller_send(self->request_controller);
-  }
-}
-
-void app_controller_focus_url(AppController *self) {
-  g_return_if_fail(APP_IS_CONTROLLER(self));
-  if (self->request_view == NULL) {
-    return;
-  }
-  RequestTopBar *bar = request_view_get_top_bar(self->request_view);
-  if (bar != NULL) {
-    request_top_bar_focus_url(bar);
-  }
-}
 
 static void app_controller_dispose(GObject *obj) {
   AppController *self = APP_CONTROLLER(obj);
