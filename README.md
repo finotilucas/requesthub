@@ -1,4 +1,4 @@
-# RequestHub (v0.1.0)
+# RequestHub (v0.1.1)
 
 A native HTTP client for Linux, written in C against GTK 4 and libcurl.
 RequestHub provides the request/response workflow familiar from tools like
@@ -116,7 +116,7 @@ A self-contained, distributable AppImage can be produced with:
 
 ```sh
 make appimage                       # build/RequestHub-<version>-x86_64.AppImage
-make appimage VERSION=0.1.0         # override the version string
+make appimage VERSION=0.1.1         # override the version string
 ```
  
 The version is otherwise derived from `git describe --tags --always --dirty`.
