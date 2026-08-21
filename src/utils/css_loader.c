@@ -54,8 +54,8 @@ static void on_css_file_changed(GFileMonitor *monitor, GFile *file,
   }
 }
 
-/* Hot-reload do CSS em builds de debug; depende de rodar a partir da raiz do
- * repositorio. O monitor vive deliberadamente ate o fim do processo. */
+/* CSS hot-reload for debug builds; requires running from the repository
+ * root. The monitor deliberately lives for the whole process. */
 static void watch_dev_css(void) {
   GFile *file = g_file_new_for_path(APP_CSS_DEV_PATH);
   GFileMonitor *monitor =

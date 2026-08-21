@@ -111,8 +111,8 @@ gboolean body_syntax_validate_yaml(const char *content,
   return valid;
 }
 
-/* cJSON/libxml2 alocam com malloc; copiamos para o alocador GLib porque os
- * chamadores liberam com g_free. */
+/* cJSON/libxml2 allocate with malloc; copy into the GLib allocator because
+ * callers free with g_free. */
 static char *steal_to_glib(char *malloced) {
   if (malloced == NULL) {
     return NULL;
