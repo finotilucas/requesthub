@@ -1,6 +1,4 @@
 /*******************************************************************************
- * REQUEST HUB
- * =============================================================================
  * Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
  *
  * This file is part of RequestHub.
@@ -21,8 +19,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#ifndef REQUEST_STATE_CODEC_H
-#define REQUEST_STATE_CODEC_H
+#pragma once
 
 #include "../history/history.h"
 #include "request_state.h"
@@ -33,5 +30,3 @@ RequestState *request_state_from_history_entry(const HistoryEntry *entry);
 HistoryEntry *history_entry_from_request_state(const RequestState *state);
 
 G_END_DECLS
-
-#endif

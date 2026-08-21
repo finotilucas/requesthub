@@ -1,6 +1,4 @@
 /*******************************************************************************
- * REQUEST HUB
- * =============================================================================
  * Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
  *
  * This file is part of RequestHub.
@@ -24,7 +22,7 @@
 #include "request_state.h"
 
 struct _RequestState {
-  HttpMethods method;
+  HttpMethod method;
   gchar *url;
   gchar *body;
   GPtrArray *headers;
@@ -54,13 +52,13 @@ void request_state_free(RequestState *self) {
   g_free(self);
 }
 
-void request_state_set_method(RequestState *self, HttpMethods method) {
+void request_state_set_method(RequestState *self, HttpMethod method) {
   if (self != NULL) {
     self->method = method;
   }
 }
 
-HttpMethods request_state_get_method(const RequestState *self) {
+HttpMethod request_state_get_method(const RequestState *self) {
   return self != NULL ? self->method : HTTP_GET;
 }
 

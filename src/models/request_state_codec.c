@@ -1,6 +1,4 @@
 /*******************************************************************************
- * REQUEST HUB
- * =============================================================================
  * Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
  *
  * This file is part of RequestHub.
@@ -60,9 +58,6 @@ HistoryEntry *history_entry_from_request_state(const RequestState *state) {
   }
 
   HistoryEntry *entry = history_entry_new();
-  if (entry == NULL) {
-    return NULL;
-  }
 
   entry->method = request_state_get_method(state);
   history_entry_set_url(entry, request_state_get_url(state));

@@ -1,6 +1,4 @@
 /*******************************************************************************
- * REQUEST HUB
- * =============================================================================
  * Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
  *
  * This file is part of RequestHub.
@@ -21,8 +19,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#ifndef REQUEST_STATE_H
-#define REQUEST_STATE_H
+#pragma once
 
 #include "../http/methods.h"
 
@@ -35,8 +32,8 @@ typedef struct _RequestState RequestState;
 RequestState *request_state_new(void);
 void          request_state_free(RequestState *self);
 
-void          request_state_set_method(RequestState *self, HttpMethods method);
-HttpMethods   request_state_get_method(const RequestState *self);
+void          request_state_set_method(RequestState *self, HttpMethod method);
+HttpMethod   request_state_get_method(const RequestState *self);
 
 void          request_state_set_url(RequestState *self, const char *url);
 const char   *request_state_get_url(const RequestState *self);
@@ -57,5 +54,3 @@ const char   *request_state_query_key   (const RequestState *self, guint index);
 const char   *request_state_query_value (const RequestState *self, guint index);
 
 G_END_DECLS
-
-#endif
