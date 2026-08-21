@@ -1,6 +1,4 @@
 /*******************************************************************************
- * REQUEST HUB
- * =============================================================================
  * Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
  *
  * This file is part of RequestHub.
@@ -45,7 +43,7 @@ static void http_service_task_data_free(HttpServiceTaskData *data) {
   g_free(data);
 }
 
-static void worker_thread(GTask *task, gpointer source_object,
+static void send_request_thread_func(GTask *task, gpointer source_object,
                           gpointer task_data, GCancellable *cancellable) {
   (void)source_object;
   (void)cancellable;
@@ -57,6 +55,12 @@ static void worker_thread(GTask *task, gpointer source_object,
     if (resp != NULL) {
       http_response_free(resp);
     }
+    return;
+  }
+
+  if (resp == NULL) {
+    g_task_return_new_error(task, G_IO_ERROR, G_IO_ERROR_FAILED,
+                            "failed to perform HTTP request");
     return;
   }
 
@@ -75,7 +79,7 @@ void http_service_send_async(HttpService *self, HttpRequest *request,
   GTask *task = g_task_new(self, cancellable, callback, user_data);
   g_task_set_task_data(task, data,
                        (GDestroyNotify)http_service_task_data_free);
-  g_task_run_in_thread(task, worker_thread);
+  g_task_run_in_thread(task, send_request_thread_func);
   g_object_unref(task);
 }
 

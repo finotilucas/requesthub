@@ -1,6 +1,4 @@
 /*******************************************************************************
- * REQUEST HUB
- * =============================================================================
  * Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
  *
  * This file is part of RequestHub.
@@ -21,8 +19,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#ifndef HTTP_SERVICE_H
-#define HTTP_SERVICE_H
+#pragma once
 
 #include "../http/request.h"
 #include "../http/response.h"
@@ -44,5 +41,3 @@ HttpResponse *http_service_send_finish(HttpService *self, GAsyncResult *result,
                                        GError **error);
 
 G_END_DECLS
-
-#endif

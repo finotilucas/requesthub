@@ -1,6 +1,4 @@
 /*******************************************************************************
- * REQUEST HUB
- * =============================================================================
  * Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
  *
  * This file is part of RequestHub.
@@ -21,11 +19,9 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#ifndef HISTORY_SERVICE_H
-#define HISTORY_SERVICE_H
+#pragma once
 
 #include "../history/history.h"
-#include "../http/methods.h"
 
 #include <glib-object.h>
 
@@ -38,13 +34,10 @@ HistoryService *history_service_new(gsize max_entries);
 
 gsize         history_service_count(HistoryService *self);
 HistoryEntry *history_service_get  (HistoryService *self, gsize index);
-HistoryEntry *history_service_find_by_request(HistoryService *self,
-                                              const char *url,
-                                              HttpMethods method);
+/* Toma posse de entry. Se ja existir entrada para a mesma URL+metodo, o
+ * conteudo e movido para ela e entry e liberado. */
 void history_service_record(HistoryService *self, HistoryEntry *entry);
 void history_service_remove(HistoryService *self, HistoryEntry *entry);
 void history_service_clear (HistoryService *self);
 
 G_END_DECLS
-
-#endif

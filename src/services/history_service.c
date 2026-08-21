@@ -1,6 +1,4 @@
 /*******************************************************************************
- * REQUEST HUB
- * =============================================================================
  * Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
  *
  * This file is part of RequestHub.
@@ -23,12 +21,15 @@
 
 #include "history_service.h"
 
+#include <gio/gio.h>
+
 #define HISTORY_SAVE_DEBOUNCE_SECONDS 2
 
 struct _HistoryService {
   GObject parent_instance;
   HistoryStore *store;
   guint pending_save_id;
+  gboolean save_in_flight;
 };
 
 G_DEFINE_FINAL_TYPE(HistoryService, history_service, G_TYPE_OBJECT)
@@ -36,12 +37,44 @@ G_DEFINE_FINAL_TYPE(HistoryService, history_service, G_TYPE_OBJECT)
 enum { SIG_CHANGED, N_SIGNALS };
 static guint signals[N_SIGNALS];
 
+static void write_history_thread_func(GTask *task, gpointer source_object,
+                                      gpointer task_data,
+                                      GCancellable *cancellable) {
+  (void)task;
+  (void)cancellable;
+  HistoryService *self = HISTORY_SERVICE(source_object);
+  history_store_write_serialized(self->store, task_data);
+}
+
+static void on_save_finished(GObject *source, GAsyncResult *result,
+                             gpointer user_data) {
+  (void)result;
+  (void)user_data;
+  HISTORY_SERVICE(source)->save_in_flight = FALSE;
+}
+
+/* Serializa na main thread (o store so e mutado aqui) e despacha apenas a
+ * escrita em disco para um worker; o refresh do timer garante uma escrita em
+ * voo por vez. */
 static gboolean on_pending_save(gpointer user_data) {
   HistoryService *self = HISTORY_SERVICE(user_data);
-  self->pending_save_id = 0;
-  if (self->store != NULL) {
-    history_store_save(self->store);
+
+  if (self->save_in_flight) {
+    return G_SOURCE_CONTINUE;
   }
+  self->pending_save_id = 0;
+
+  gchar *payload = history_store_serialize(self->store);
+  if (payload == NULL) {
+    return G_SOURCE_REMOVE;
+  }
+
+  self->save_in_flight = TRUE;
+  GTask *task = g_task_new(self, NULL, on_save_finished, NULL);
+  g_task_set_task_data(task, payload, g_free);
+  g_task_run_in_thread(task, write_history_thread_func);
+  g_object_unref(task);
+
   return G_SOURCE_REMOVE;
 }
 
@@ -74,12 +107,6 @@ HistoryEntry *history_service_get(HistoryService *self, gsize index) {
   return history_store_get(self->store, index);
 }
 
-HistoryEntry *history_service_find_by_request(HistoryService *self,
-                                              const char *url,
-                                              HttpMethods method) {
-  g_return_val_if_fail(HISTORY_IS_SERVICE(self), NULL);
-  return history_store_find_by_request(self->store, url, method);
-}
 
 void history_service_record(HistoryService *self, HistoryEntry *entry) {
   g_return_if_fail(HISTORY_IS_SERVICE(self));
@@ -90,8 +117,10 @@ void history_service_record(HistoryService *self, HistoryEntry *entry) {
   HistoryEntry *existing =
       history_store_find_by_request(self->store, entry->url, entry->method);
 
-  if (existing != NULL && existing != entry) {
-    history_entry_take_payload(existing, entry);
+  if (existing == entry) {
+    history_store_promote(self->store, entry);
+  } else if (existing != NULL) {
+    history_entry_move_content_from(existing, entry);
     history_entry_free(entry);
     history_store_promote(self->store, existing);
   } else {
