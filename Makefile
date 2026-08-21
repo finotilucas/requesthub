@@ -124,7 +124,8 @@ TEST_BIN_DIR    := $(BUILD_DIR)/test
 
 TEST_HISTORY_TARGET     := $(TEST_BIN_DIR)/test_history$(EXE)
 TEST_HISTORY_SOURCES    := $(TEST_DIR)/test_history.c \
-                           $(SRC_DIR)/history/history.c
+                           $(SRC_DIR)/history/history.c \
+                           $(SRC_DIR)/history/history_persistence.c
 TEST_HISTORY_OBJECTS    := $(TEST_HISTORY_SOURCES:%.c=$(TEST_OBJ_DIR)/%.o)
 
 TEST_REQUEST_TARGET     := $(TEST_BIN_DIR)/test_request$(EXE)

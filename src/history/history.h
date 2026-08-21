@@ -1,6 +1,4 @@
 /*******************************************************************************
- * REQUEST HUB
- * =============================================================================
  * Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
  *
  * This file is part of RequestHub.
@@ -21,19 +19,17 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#ifndef HISTORY_H
-#define HISTORY_H
+#pragma once
 
 #include "../http/methods.h"
 #include "../http/response.h"
 
 #include <glib.h>
 
-#define HISTORY_DEFAULT_MAX_ENTRIES 200
 
 typedef struct {
   gchar *id;
-  HttpMethods method;
+  HttpMethod method;
   gchar *url;
   gchar *body;
   GPtrArray *headers;
@@ -58,7 +54,9 @@ void history_entry_add_header(HistoryEntry *entry, const char *key,
 void history_entry_add_query_param(HistoryEntry *entry, const char *key,
                                    const char *value);
 void history_entry_apply_response(HistoryEntry *entry, const HttpResponse *resp);
-void history_entry_take_payload(HistoryEntry *dst, HistoryEntry *src);
+/* Move todo o conteudo de src para dst (metodo, URL, resposta, timestamps),
+ * preservando dst->id; src fica vazio mas valido. */
+void history_entry_move_content_from(HistoryEntry *dst, HistoryEntry *src);
 
 guint history_entry_headers_count(const HistoryEntry *entry);
 guint history_entry_query_count(const HistoryEntry *entry);
@@ -71,17 +69,22 @@ HistoryStore *history_store_new(gsize max_entries);
 void history_store_free(HistoryStore *store);
 
 gboolean history_store_load(HistoryStore *store);
+
+/* Serializa todas as entradas no formato de disco; g_free no retorno. */
+gchar *history_store_serialize(const HistoryStore *store);
+
+/* Escreve um payload ja serializado no arquivo do store (atomico, 0600).
+ * Nao toca nas entradas — seguro fora da main thread. */
+gboolean history_store_write_serialized(const HistoryStore *store,
+                                        const char *payload);
 gboolean history_store_save(const HistoryStore *store);
 
 void history_store_prepend(HistoryStore *store, HistoryEntry *entry);
 gboolean history_store_remove(HistoryStore *store, HistoryEntry *entry);
 gsize history_store_count(const HistoryStore *store);
 HistoryEntry *history_store_get(const HistoryStore *store, gsize index);
-gboolean history_store_evicted_after_prepend(gsize before, gsize after);
 void history_store_clear(HistoryStore *store);
 HistoryEntry *history_store_find_by_request(const HistoryStore *store,
                                             const char *url,
-                                            HttpMethods method);
+                                            HttpMethod method);
 gboolean history_store_promote(HistoryStore *store, HistoryEntry *entry);
-
-#endif

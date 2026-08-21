@@ -1,6 +1,4 @@
 /*******************************************************************************
- * REQUEST HUB
- * =============================================================================
  * Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
  *
  * This file is part of RequestHub.
@@ -25,7 +23,7 @@
 
 #include <glib.h>
 
-static HistoryEntry *make_entry(HttpMethods method, const char *url) {
+static HistoryEntry *make_entry(HttpMethod method, const char *url) {
   HistoryEntry *entry = history_entry_new();
   entry->method = method;
   history_entry_set_url(entry, url);
@@ -104,7 +102,7 @@ static void test_entry_take_payload_transfers_ownership(void) {
   HistoryEntry *dst = history_entry_new();
   gchar *original_dst_id = g_strdup(dst->id);
 
-  history_entry_take_payload(dst, src);
+  history_entry_move_content_from(dst, src);
 
   g_assert_cmpstr(dst->id, ==, original_dst_id);
   g_assert_cmpint(dst->method, ==, HTTP_POST);
@@ -129,7 +127,7 @@ static void test_entry_take_payload_transfers_ownership(void) {
 static void test_entry_take_payload_self_is_noop(void) {
   HistoryEntry *entry = history_entry_new();
   history_entry_set_url(entry, "https://example.com");
-  history_entry_take_payload(entry, entry);
+  history_entry_move_content_from(entry, entry);
   g_assert_cmpstr(entry->url, ==, "https://example.com");
   history_entry_free(entry);
 }
@@ -167,11 +165,6 @@ static void test_store_eviction_at_max(void) {
   history_store_free(store);
 }
 
-static void test_store_eviction_helper(void) {
-  g_assert_true(history_store_evicted_after_prepend(5, 5));
-  g_assert_false(history_store_evicted_after_prepend(3, 4));
-  g_assert_false(history_store_evicted_after_prepend(0, 1));
-}
 
 static void test_store_find_by_request_matches_url_and_method(void) {
   HistoryStore *store = history_store_new(10);
@@ -300,7 +293,6 @@ int main(int argc, char **argv) {
                   test_store_prepend_and_count);
   g_test_add_func("/history/store/eviction_at_max",
                   test_store_eviction_at_max);
-  g_test_add_func("/history/store/eviction_helper", test_store_eviction_helper);
   g_test_add_func("/history/store/find_by_request",
                   test_store_find_by_request_matches_url_and_method);
   g_test_add_func("/history/store/promote", test_store_promote_moves_to_front);
