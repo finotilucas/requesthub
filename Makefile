@@ -88,16 +88,23 @@ $(GRESOURCE_C): $(GRESOURCE_XML) $(GRESOURCE_DEPS)
 	@echo "Generating GResource: $@"
 	glib-compile-resources --target=$@ --generate-source --sourcedir=$(SRC_DIR)/ui/styles $(GRESOURCE_XML)
 
-# ==== Testes =================================================================
+# ==== Tests ==================================================================
 
 TEST_CFLAGS  := -g $(SANITIZE) -std=gnu11 $(WARNINGS) -MMD -MP \
-                $(shell pkg-config --cflags glib-2.0) $(CJSON_CFLAGS) \
+                $(shell pkg-config --cflags gio-2.0) $(CJSON_CFLAGS) \
                 $(shell pkg-config --cflags libcurl 2>/dev/null)
-TEST_LDLIBS  := $(shell pkg-config --libs glib-2.0) $(CJSON_LIBS) \
+TEST_LDLIBS  := $(shell pkg-config --libs gio-2.0) $(CJSON_LIBS) \
                 $(shell pkg-config --libs libcurl 2>/dev/null || echo -lcurl) -lpthread
 
-TESTS                   := test_history test_request test_response test_http_pool test_http_perform
-test_history_SRCS       := $(SRC_DIR)/history/history.c $(SRC_DIR)/history/history_persistence.c
+TESTS                   := test_history test_history_service test_request \
+                           test_response test_http_pool test_http_perform
+test_history_SRCS       := $(SRC_DIR)/history/history.c \
+                           $(SRC_DIR)/history/history_persistence.c \
+                           $(SRC_DIR)/models/request_data.c
+test_history_service_SRCS := $(SRC_DIR)/services/history_service.c \
+                           $(SRC_DIR)/history/history.c \
+                           $(SRC_DIR)/history/history_persistence.c \
+                           $(SRC_DIR)/models/request_data.c
 test_request_SRCS       := $(SRC_DIR)/http/request.c $(SRC_DIR)/http/methods.c
 test_response_SRCS      := $(SRC_DIR)/http/response.c
 test_http_pool_SRCS     := $(SRC_DIR)/http/http_pool.c
@@ -122,7 +129,7 @@ $(foreach t,$(TESTS),$(eval $(call TEST_template,$(t))))
 test: $(TEST_TARGETS)
 	@for t in $(TEST_TARGETS); do echo "==> $$t"; $$t || exit $$?; done
 
-# ==== Utilitarios ============================================================
+# ==== Utilities ==============================================================
 
 REQUIRED_PKGS := $(PKGS) libxml-2.0 libcurl
 
