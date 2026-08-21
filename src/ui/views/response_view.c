@@ -1,6 +1,4 @@
 /*******************************************************************************
- * REQUEST HUB
- * =============================================================================
  * Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
  *
  * This file is part of RequestHub.
@@ -25,13 +23,15 @@
 #include "../panels/response_content.h"
 #include "../panels/response_top_bar.h"
 
+#define RESPONSE_VIEW_MIN_WIDTH 400
+
 struct _ResponseView {
   GtkBox parent_instance;
   ResponseTopBar *top_bar;
   ResponseContent *content;
 };
 
-G_DEFINE_TYPE(ResponseView, response_view, GTK_TYPE_BOX)
+G_DEFINE_FINAL_TYPE(ResponseView, response_view, GTK_TYPE_BOX)
 
 static void response_view_init(ResponseView *self) {
   gtk_orientable_set_orientation(GTK_ORIENTABLE(self),

@@ -1,6 +1,4 @@
 /*******************************************************************************
- * REQUEST HUB
- * =============================================================================
  * Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
  *
  * This file is part of RequestHub.
@@ -33,12 +31,12 @@ struct _RequestTopBar {
   GtkWidget *button_spinner;
 };
 
-G_DEFINE_TYPE(RequestTopBar, request_top_bar, GTK_TYPE_BOX)
+G_DEFINE_FINAL_TYPE(RequestTopBar, request_top_bar, GTK_TYPE_BOX)
 
 enum { SEND_CLICKED, N_SIGNALS };
 static guint signals[N_SIGNALS];
 
-static void on_send_clicked_internal(GtkButton *btn, gpointer user_data) {
+static void on_send_button_clicked(GtkButton *btn, gpointer user_data) {
   (void)btn;
   RequestTopBar *self = REQUEST_TOP_BAR(user_data);
   g_signal_emit(self, signals[SEND_CLICKED], 0);
@@ -56,9 +54,9 @@ static void request_top_bar_init(RequestTopBar *self) {
 
   const char **methods = http_methods_get_list();
   GtkStringList *list = gtk_string_list_new(methods);
+  /* gtk_drop_down_new toma posse do modelo (transfer full) — sem unref. */
   self->method_dropdown =
       GTK_DROP_DOWN(gtk_drop_down_new(G_LIST_MODEL(list), NULL));
-  g_object_unref(list);
 
   self->url_entry = GTK_ENTRY(gtk_entry_new());
   gtk_entry_set_placeholder_text(self->url_entry, "https://api.example.com");
@@ -86,7 +84,7 @@ static void request_top_bar_init(RequestTopBar *self) {
   gtk_button_set_child(self->send_button, btn_content);
 
   g_signal_connect(self->send_button, "clicked",
-                   G_CALLBACK(on_send_clicked_internal), self);
+                   G_CALLBACK(on_send_button_clicked), self);
 
   gtk_box_append(GTK_BOX(self), GTK_WIDGET(self->method_dropdown));
   gtk_box_append(GTK_BOX(self), GTK_WIDGET(self->url_entry));
@@ -100,6 +98,7 @@ static void request_top_bar_class_init(RequestTopBarClass *klass) {
 }
 
 void request_top_bar_set_loading(RequestTopBar *self, gboolean is_loading) {
+  g_return_if_fail(REQUEST_IS_TOP_BAR(self));
   if (is_loading) {
     gtk_spinner_start(GTK_SPINNER(self->button_spinner));
     gtk_widget_set_visible(self->button_label, FALSE);
@@ -118,11 +117,13 @@ RequestTopBar *request_top_bar_new(void) {
 }
 
 const char *request_top_bar_get_url(RequestTopBar *self) {
+  g_return_val_if_fail(REQUEST_IS_TOP_BAR(self), NULL);
   return gtk_editable_get_text(GTK_EDITABLE(self->url_entry));
 }
 
-HttpMethods request_top_bar_get_method(RequestTopBar *self) {
-  return (HttpMethods)gtk_drop_down_get_selected(self->method_dropdown);
+HttpMethod request_top_bar_get_method(RequestTopBar *self) {
+  g_return_val_if_fail(REQUEST_IS_TOP_BAR(self), HTTP_GET);
+  return (HttpMethod)gtk_drop_down_get_selected(self->method_dropdown);
 }
 
 void request_top_bar_set_url(RequestTopBar *self, const char *url) {
@@ -130,7 +131,7 @@ void request_top_bar_set_url(RequestTopBar *self, const char *url) {
   gtk_editable_set_text(GTK_EDITABLE(self->url_entry), url != NULL ? url : "");
 }
 
-void request_top_bar_set_method(RequestTopBar *self, HttpMethods method) {
+void request_top_bar_set_method(RequestTopBar *self, HttpMethod method) {
   g_return_if_fail(REQUEST_IS_TOP_BAR(self));
   if (method < HTTP_GET || method > HTTP_OPTIONS) {
     return;

@@ -1,6 +1,4 @@
 /*******************************************************************************
- * REQUEST HUB
- * =============================================================================
  * Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
  *
  * This file is part of RequestHub.
@@ -34,22 +32,24 @@ struct _ResponseTopBar {
   GtkLabel *size_label;
 };
 
-G_DEFINE_TYPE(ResponseTopBar, response_top_bar, GTK_TYPE_BOX)
+G_DEFINE_FINAL_TYPE(ResponseTopBar, response_top_bar, GTK_TYPE_BOX)
 
-static void apply_status_style(GtkWidget *label, int status) {
+static void set_status_badge(GtkWidget *label, const char *css_class) {
   static const char *classes[] = {"badge-success", "badge-warning",
                                   "badge-error", "badge-neutral", NULL};
   for (int i = 0; classes[i]; i++)
     gtk_widget_remove_css_class(label, classes[i]);
+  gtk_widget_add_css_class(label, css_class);
+}
 
+static const char *status_css_class(long status) {
   if (status >= 200 && status < 300)
-    gtk_widget_add_css_class(label, "badge-success");
-  else if (status >= 400 && status < 500)
-    gtk_widget_add_css_class(label, "badge-warning");
-  else if (status >= 500)
-    gtk_widget_add_css_class(label, "badge-error");
-  else
-    gtk_widget_add_css_class(label, "badge-neutral");
+    return "badge-success";
+  if (status >= 400 && status < 500)
+    return "badge-warning";
+  if (status >= 500)
+    return "badge-error";
+  return "badge-neutral";
 }
 
 static void response_top_bar_class_init(ResponseTopBarClass *klass) {
@@ -102,21 +102,20 @@ void response_top_bar_update(ResponseTopBar *self, HttpResponse *resp) {
 
   if (resp->curl_code != CURLE_OK) {
     gtk_label_set_text(self->status_value_label, "ERR");
-    apply_status_style(GTK_WIDGET(self->status_value_label), 500);
+    set_status_badge(GTK_WIDGET(self->status_value_label), "badge-error");
   } else {
     char buf[128];
     g_snprintf(buf, sizeof(buf), "%ld", resp->http_status);
     gtk_label_set_text(self->status_value_label, buf);
-    apply_status_style(GTK_WIDGET(self->status_value_label),
-                       (int)resp->http_status);
+    set_status_badge(GTK_WIDGET(self->status_value_label),
+                     status_css_class(resp->http_status));
   }
 
-  char *time_str = format_response_time(resp->total_time * 1000.0);
+  char *time_str = format_response_time(resp->total_time);
   gtk_label_set_text(self->time_label, time_str);
   g_free(time_str);
 
-  size_t body_len = resp->body ? strlen(resp->body) : 0;
-  char *size_str = format_response_size(body_len);
+  char *size_str = format_response_size(resp->body_size);
   gtk_label_set_text(self->size_label, size_str);
 
   gtk_revealer_set_reveal_child(self->revealer, TRUE);
