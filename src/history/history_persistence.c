@@ -19,10 +19,10 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-/* Formato em disco (CONGELADO — mudancas quebram historicos existentes):
- * array JSON compacto; cada objeto usa os campos id/method/url/body/headers/
- * query/ts/status/time/size/rbody/rct, com "method" gravado como o ORDINAL de
- * HttpMethod (ver o comentario em src/http/methods.h). */
+/* On-disk format (FROZEN — changes break existing histories): a compact
+ * JSON array; each object uses the fields id/method/url/body/headers/query/
+ * ts/status/time/size/rbody/rct, with "method" stored as the HttpMethod
+ * ORDINAL (see the comment in src/http/methods.h). */
 
 #include "internal.h"
 
@@ -80,15 +80,16 @@ static cJSON *entry_to_json(const HistoryEntry *entry) {
   }
 
   cJSON_AddStringToObject(obj, "id", entry->id != NULL ? entry->id : "");
-  cJSON_AddNumberToObject(obj, "method", (double)entry->method);
-  cJSON_AddStringToObject(obj, "url", entry->url != NULL ? entry->url : "");
+  cJSON_AddNumberToObject(obj, "method", (double)entry->request.method);
+  cJSON_AddStringToObject(obj, "url",
+                          entry->request.url != NULL ? entry->request.url : "");
 
-  if (entry->body != NULL) {
-    cJSON_AddStringToObject(obj, "body", entry->body);
+  if (entry->request.body != NULL) {
+    cJSON_AddStringToObject(obj, "body", entry->request.body);
   }
 
-  add_kv_array(obj, "headers", entry->headers);
-  add_kv_array(obj, "query", entry->query_params);
+  add_kv_array(obj, "headers", entry->request.headers);
+  add_kv_array(obj, "query", entry->request.query_params);
 
   cJSON_AddNumberToObject(obj, "ts", (double)entry->timestamp_ms);
   cJSON_AddNumberToObject(obj, "status", (double)entry->http_status);
@@ -105,10 +106,17 @@ static cJSON *entry_to_json(const HistoryEntry *entry) {
   return obj;
 }
 
-static void entry_add_pairs_from_json(HistoryEntry *entry, cJSON *array,
-                                      void (*add_pair)(HistoryEntry *,
-                                                       const char *,
-                                                       const char *)) {
+static void add_header_filtered(RequestData *request, const char *key,
+                                const char *value) {
+  if (!history_header_key_is_sensitive(key)) {
+    request_data_add_header(request, key, value);
+  }
+}
+
+static void request_add_pairs_from_json(RequestData *request, cJSON *array,
+                                        void (*add_pair)(RequestData *,
+                                                         const char *,
+                                                         const char *)) {
   if (array == NULL || !cJSON_IsArray(array)) {
     return;
   }
@@ -125,7 +133,7 @@ static void entry_add_pairs_from_json(HistoryEntry *entry, cJSON *array,
     }
     const char *value_str =
         (cJSON_IsString(v) && v->valuestring != NULL) ? v->valuestring : "";
-    add_pair(entry, k->valuestring, value_str);
+    add_pair(request, k->valuestring, value_str);
   }
 }
 
@@ -145,27 +153,27 @@ static HistoryEntry *entry_from_json(const cJSON *obj) {
   cJSON *method = cJSON_GetObjectItemCaseSensitive(obj, "method");
   if (cJSON_IsNumber(method)) {
     int raw = method->valueint;
-    if (raw >= HTTP_GET && raw <= HTTP_OPTIONS) {
-      entry->method = (HttpMethod)raw;
+    if (raw >= 0 && raw < HTTP_METHOD_COUNT) {
+      entry->request.method = (HttpMethod)raw;
     }
   }
 
   cJSON *url = cJSON_GetObjectItemCaseSensitive(obj, "url");
   if (cJSON_IsString(url) && url->valuestring != NULL) {
-    entry->url = g_strdup(url->valuestring);
+    request_data_set_url(&entry->request, url->valuestring);
   }
 
   cJSON *body = cJSON_GetObjectItemCaseSensitive(obj, "body");
   if (cJSON_IsString(body) && body->valuestring != NULL) {
-    entry->body = g_strdup(body->valuestring);
+    request_data_set_body(&entry->request, body->valuestring);
   }
 
-  entry_add_pairs_from_json(entry,
-                            cJSON_GetObjectItemCaseSensitive(obj, "headers"),
-                            history_entry_add_header);
-  entry_add_pairs_from_json(entry,
-                            cJSON_GetObjectItemCaseSensitive(obj, "query"),
-                            history_entry_add_query_param);
+  request_add_pairs_from_json(&entry->request,
+                              cJSON_GetObjectItemCaseSensitive(obj, "headers"),
+                              add_header_filtered);
+  request_add_pairs_from_json(&entry->request,
+                              cJSON_GetObjectItemCaseSensitive(obj, "query"),
+                              request_data_add_query);
 
   cJSON *ts = cJSON_GetObjectItemCaseSensitive(obj, "ts");
   if (cJSON_IsNumber(ts)) {

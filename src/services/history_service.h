@@ -34,8 +34,7 @@ HistoryService *history_service_new(gsize max_entries);
 
 gsize         history_service_count(HistoryService *self);
 HistoryEntry *history_service_get  (HistoryService *self, gsize index);
-/* Toma posse de entry. Se ja existir entrada para a mesma URL+metodo, o
- * conteudo e movido para ela e entry e liberado. */
+
 void history_service_record(HistoryService *self, HistoryEntry *entry);
 void history_service_remove(HistoryService *self, HistoryEntry *entry);
 void history_service_clear (HistoryService *self);

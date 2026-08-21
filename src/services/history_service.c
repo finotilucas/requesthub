@@ -53,9 +53,9 @@ static void on_save_finished(GObject *source, GAsyncResult *result,
   HISTORY_SERVICE(source)->save_in_flight = FALSE;
 }
 
-/* Serializa na main thread (o store so e mutado aqui) e despacha apenas a
- * escrita em disco para um worker; o refresh do timer garante uma escrita em
- * voo por vez. */
+/* Serialize on the main thread (the store is only mutated here) and hand
+ * just the disk write to a worker; re-arming the timer keeps a single write
+ * in flight. */
 static gboolean on_pending_save(gpointer user_data) {
   HistoryService *self = HISTORY_SERVICE(user_data);
 
@@ -115,7 +115,8 @@ void history_service_record(HistoryService *self, HistoryEntry *entry) {
   }
 
   HistoryEntry *existing =
-      history_store_find_by_request(self->store, entry->url, entry->method);
+      history_store_find_by_request(self->store, entry->request.url,
+                                    entry->request.method);
 
   if (existing == entry) {
     history_store_promote(self->store, entry);

@@ -21,19 +21,14 @@
 
 #pragma once
 
-#include "../http/methods.h"
 #include "../http/response.h"
+#include "../models/request_data.h"
 
 #include <glib.h>
 
-
 typedef struct {
   gchar *id;
-  HttpMethod method;
-  gchar *url;
-  gchar *body;
-  GPtrArray *headers;
-  GPtrArray *query_params;
+  RequestData request;
   gint64 timestamp_ms;
   glong http_status;
   gdouble total_time_s;
@@ -45,36 +40,28 @@ typedef struct {
 typedef struct _HistoryStore HistoryStore;
 
 HistoryEntry *history_entry_new(void);
+
+/* Copies request into a new entry, filtering sensitive headers
+ * (Authorization) and skipping an empty body. */
+HistoryEntry *history_entry_new_from_request(const RequestData *request);
+
 void history_entry_free(HistoryEntry *entry);
 
-void history_entry_set_url(HistoryEntry *entry, const char *url);
-void history_entry_set_body(HistoryEntry *entry, const char *body);
-void history_entry_add_header(HistoryEntry *entry, const char *key,
-                              const char *value);
-void history_entry_add_query_param(HistoryEntry *entry, const char *key,
-                                   const char *value);
 void history_entry_apply_response(HistoryEntry *entry, const HttpResponse *resp);
-/* Move todo o conteudo de src para dst (metodo, URL, resposta, timestamps),
- * preservando dst->id; src fica vazio mas valido. */
+/* Moves all content from src to dst (request, response, timestamps),
+ * preserving dst->id; src is left empty but valid. */
 void history_entry_move_content_from(HistoryEntry *dst, HistoryEntry *src);
-
-guint history_entry_headers_count(const HistoryEntry *entry);
-guint history_entry_query_count(const HistoryEntry *entry);
-const char *history_entry_header_key(const HistoryEntry *entry, guint index);
-const char *history_entry_header_value(const HistoryEntry *entry, guint index);
-const char *history_entry_query_key(const HistoryEntry *entry, guint index);
-const char *history_entry_query_value(const HistoryEntry *entry, guint index);
 
 HistoryStore *history_store_new(gsize max_entries);
 void history_store_free(HistoryStore *store);
 
 gboolean history_store_load(HistoryStore *store);
 
-/* Serializa todas as entradas no formato de disco; g_free no retorno. */
+/* Serializes all entries to the on-disk format; g_free the result. */
 gchar *history_store_serialize(const HistoryStore *store);
 
-/* Escreve um payload ja serializado no arquivo do store (atomico, 0600).
- * Nao toca nas entradas — seguro fora da main thread. */
+/* Writes an already-serialized payload to the store file (atomic, 0600).
+ * Does not touch the entries — safe off the main thread. */
 gboolean history_store_write_serialized(const HistoryStore *store,
                                         const char *payload);
 gboolean history_store_save(const HistoryStore *store);

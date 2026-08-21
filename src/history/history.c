@@ -26,29 +26,45 @@
 #define HISTORY_DEFAULT_MAX_ENTRIES 200
 #define HISTORY_MAX_RESPONSE_BODY (512 * 1024)
 
-static gboolean header_key_is_sensitive(const char *key) {
+gboolean history_header_key_is_sensitive(const char *key) {
   return key != NULL && g_ascii_strcasecmp(key, "Authorization") == 0;
-}
-
-static const char *kv_array_get(const GPtrArray *pairs, guint index,
-                                gboolean want_value) {
-  if (pairs == NULL) {
-    return NULL;
-  }
-  guint slot = index * 2 + (want_value ? 1 : 0);
-  if (slot >= pairs->len) {
-    return NULL;
-  }
-  return g_ptr_array_index(pairs, slot);
 }
 
 HistoryEntry *history_entry_new(void) {
   HistoryEntry *entry = g_new0(HistoryEntry, 1);
   entry->id = g_uuid_string_random();
-  entry->method = HTTP_GET;
-  entry->headers = g_ptr_array_new_with_free_func(g_free);
-  entry->query_params = g_ptr_array_new_with_free_func(g_free);
+  request_data_init(&entry->request);
   entry->timestamp_ms = g_get_real_time() / 1000;
+  return entry;
+}
+
+HistoryEntry *history_entry_new_from_request(const RequestData *request) {
+  if (request == NULL) {
+    return NULL;
+  }
+
+  HistoryEntry *entry = history_entry_new();
+  entry->request.method = request->method;
+  request_data_set_url(&entry->request, request->url);
+  if (request->body != NULL && *request->body != '\0') {
+    request_data_set_body(&entry->request, request->body);
+  }
+
+  guint header_count = request_data_headers_count(request);
+  for (guint i = 0; i < header_count; i++) {
+    const char *key = request_data_header_key(request, i);
+    if (!history_header_key_is_sensitive(key)) {
+      request_data_add_header(&entry->request, key,
+                              request_data_header_value(request, i));
+    }
+  }
+
+  guint query_count = request_data_query_count(request);
+  for (guint i = 0; i < query_count; i++) {
+    request_data_add_query(&entry->request, request_data_query_key(request, i),
+                           request_data_query_value(request, i));
+  }
+
   return entry;
 }
 
@@ -58,72 +74,14 @@ void history_entry_free(HistoryEntry *entry) {
   }
 
   g_free(entry->id);
-  g_free(entry->url);
-  g_free(entry->body);
+  request_data_clear(&entry->request);
   g_free(entry->response_body);
   g_free(entry->response_content_type);
-
-  if (entry->headers != NULL) {
-    g_ptr_array_unref(entry->headers);
-  }
-  if (entry->query_params != NULL) {
-    g_ptr_array_unref(entry->query_params);
-  }
-
   g_free(entry);
-}
-
-void history_entry_set_url(HistoryEntry *entry, const char *url) {
-  if (entry == NULL) {
-    return;
-  }
-
-  g_free(entry->url);
-  entry->url = (url != NULL) ? g_strdup(url) : NULL;
-}
-
-void history_entry_set_body(HistoryEntry *entry, const char *body) {
-  if (entry == NULL) {
-    return;
-  }
-
-  g_free(entry->body);
-  entry->body = (body != NULL) ? g_strdup(body) : NULL;
-}
-
-void history_entry_add_header(HistoryEntry *entry, const char *key,
-                              const char *value) {
-  if (entry == NULL || key == NULL || *key == '\0') {
-    return;
-  }
-  if (header_key_is_sensitive(key)) {
-    return;
-  }
-
-  g_ptr_array_add(entry->headers, g_strdup(key));
-  g_ptr_array_add(entry->headers, g_strdup(value != NULL ? value : ""));
-}
-
-void history_entry_add_query_param(HistoryEntry *entry, const char *key,
-                                   const char *value) {
-  if (entry == NULL || key == NULL || *key == '\0') {
-    return;
-  }
-
-  g_ptr_array_add(entry->query_params, g_strdup(key));
-  g_ptr_array_add(entry->query_params, g_strdup(value != NULL ? value : ""));
 }
 
 static void take_str(gchar **dst, gchar **src) {
   g_free(*dst);
-  *dst = *src;
-  *src = NULL;
-}
-
-static void take_array(GPtrArray **dst, GPtrArray **src) {
-  if (*dst != NULL) {
-    g_ptr_array_unref(*dst);
-  }
   *dst = *src;
   *src = NULL;
 }
@@ -133,11 +91,10 @@ void history_entry_move_content_from(HistoryEntry *dst, HistoryEntry *src) {
     return;
   }
 
-  dst->method = src->method;
-  take_str(&dst->url, &src->url);
-  take_str(&dst->body, &src->body);
-  take_array(&dst->headers, &src->headers);
-  take_array(&dst->query_params, &src->query_params);
+  request_data_clear(&dst->request);
+  dst->request = src->request;
+  src->request = (RequestData){0};
+
   take_str(&dst->response_body, &src->response_body);
   take_str(&dst->response_content_type, &src->response_content_type);
 
@@ -147,9 +104,9 @@ void history_entry_move_content_from(HistoryEntry *dst, HistoryEntry *src) {
   dst->response_size = src->response_size;
 }
 
-/* Corta em no maximo max_len recuando ate o ultimo code point UTF-8 completo:
- * um corte no meio de um code point geraria string invalida que quebraria a
- * serializacao cJSON e os widgets GTK. */
+/* Cuts at max_len backing up to the last complete UTF-8 code point: a cut
+ * in the middle of a code point would produce an invalid string that breaks
+ * cJSON serialization and GTK widgets. */
 static gchar *copy_utf8_prefix(const char *text, gsize text_len,
                                gsize max_len) {
   gsize len = text_len < max_len ? text_len : max_len;
@@ -193,35 +150,6 @@ void history_entry_apply_response(HistoryEntry *entry,
   }
 }
 
-guint history_entry_headers_count(const HistoryEntry *entry) {
-  if (entry == NULL || entry->headers == NULL) {
-    return 0;
-  }
-  return entry->headers->len / 2;
-}
-
-guint history_entry_query_count(const HistoryEntry *entry) {
-  if (entry == NULL || entry->query_params == NULL) {
-    return 0;
-  }
-  return entry->query_params->len / 2;
-}
-
-const char *history_entry_header_key(const HistoryEntry *entry, guint index) {
-  return entry != NULL ? kv_array_get(entry->headers, index, FALSE) : NULL;
-}
-
-const char *history_entry_header_value(const HistoryEntry *entry, guint index) {
-  return entry != NULL ? kv_array_get(entry->headers, index, TRUE) : NULL;
-}
-
-const char *history_entry_query_key(const HistoryEntry *entry, guint index) {
-  return entry != NULL ? kv_array_get(entry->query_params, index, FALSE) : NULL;
-}
-
-const char *history_entry_query_value(const HistoryEntry *entry, guint index) {
-  return entry != NULL ? kv_array_get(entry->query_params, index, TRUE) : NULL;
-}
 
 HistoryStore *history_store_new(gsize max_entries) {
   HistoryStore *store = g_new0(HistoryStore, 1);
@@ -288,10 +216,10 @@ HistoryEntry *history_store_find_by_request(const HistoryStore *store,
 
   for (guint i = 0; i < store->entries->len; i++) {
     HistoryEntry *candidate = g_ptr_array_index(store->entries, i);
-    if (candidate == NULL || candidate->method != method) {
+    if (candidate == NULL || candidate->request.method != method) {
       continue;
     }
-    if (g_strcmp0(candidate->url, url) == 0) {
+    if (g_strcmp0(candidate->request.url, url) == 0) {
       return candidate;
     }
   }

@@ -23,8 +23,7 @@
 
 #include "../http/request.h"
 #include "../http/response.h"
-#include "../models/request_state.h"
-#include "../models/request_state_codec.h"
+#include "../models/request_data.h"
 #include "../ui/panels/body_panel.h"
 #include "../ui/panels/request_top_bar.h"
 
@@ -55,26 +54,25 @@ static void async_request_data_free(AsyncRequestData *data) {
   g_free(data);
 }
 
-static HttpRequest *http_request_from_state(const RequestState *state) {
-  if (state == NULL) {
+static HttpRequest *http_request_from_data(const RequestData *data) {
+  if (data == NULL) {
     return NULL;
   }
-  HttpRequest *req = http_request_new(request_state_get_url(state),
-                                      request_state_get_method(state));
+  HttpRequest *req = http_request_new(data->url, data->method);
   if (req == NULL) {
     return NULL;
   }
 
-  guint header_count = request_state_headers_count(state);
+  guint header_count = request_data_headers_count(data);
   for (guint i = 0; i < header_count; i++) {
-    http_request_add_header(req, request_state_header_key(state, i),
-                            request_state_header_value(state, i));
+    http_request_add_header(req, request_data_header_key(data, i),
+                            request_data_header_value(data, i));
   }
 
-  guint query_count = request_state_query_count(state);
+  guint query_count = request_data_query_count(data);
   for (guint i = 0; i < query_count; i++) {
-    http_request_add_query_param(req, request_state_query_key(state, i),
-                                 request_state_query_value(state, i));
+    http_request_add_query_param(req, request_data_query_key(data, i),
+                                 request_data_query_value(data, i));
   }
 
   return req;
@@ -146,16 +144,16 @@ void request_controller_send(RequestController *self) {
     return;
   }
 
-  RequestState *state = request_view_capture_state(self->request_view);
-  if (state == NULL) {
+  RequestData *data = request_view_capture_request(self->request_view);
+  if (data == NULL) {
     g_warning("send aborted: could not capture request state");
     return;
   }
 
-  HttpRequest *req = http_request_from_state(state);
+  HttpRequest *req = http_request_from_data(data);
   if (req == NULL) {
     g_warning("send aborted: request needs a URL");
-    request_state_free(state);
+    request_data_free(data);
     return;
   }
 
@@ -164,8 +162,8 @@ void request_controller_send(RequestController *self) {
     body_panel_apply_to_request(body_panel, req);
   }
 
-  HistoryEntry *entry = history_entry_from_request_state(state);
-  request_state_free(state);
+  HistoryEntry *entry = history_entry_new_from_request(data);
+  request_data_free(data);
 
   if (self->cancellable != NULL) {
     g_cancellable_cancel(self->cancellable);

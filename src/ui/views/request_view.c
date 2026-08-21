@@ -24,6 +24,7 @@
 #include "../panels/body_panel.h"
 #include "../components/kv_list_view.h"
 #include "../../config/version.h"
+#include "../../http/http.h"
 
 #define REQUEST_VIEW_MIN_WIDTH 380
 
@@ -70,7 +71,8 @@ static KvListView *build_headers_list(void) {
   gtk_widget_set_vexpand(GTK_WIDGET(list), TRUE);
   gtk_widget_set_hexpand(GTK_WIDGET(list), TRUE);
 
-  kv_list_view_add_fixed(list, "Accept", "*/*", HEADER_FIXED_TOOLTIP);
+  kv_list_view_add_fixed(list, "Accept", HTTP_DEFAULT_ACCEPT,
+                         HEADER_FIXED_TOOLTIP);
   kv_list_view_add_fixed(list, "Host", "<calculated at runtime>",
                          HEADER_FIXED_TOOLTIP);
   kv_list_view_add_editable(list, "User-Agent", REQUESTHUB_USER_AGENT);
@@ -119,70 +121,69 @@ BodyPanel *request_view_get_body_panel(RequestView *self) {
   return self->body_panel;
 }
 
-void request_view_apply_state(RequestView *self, const RequestState *state) {
+void request_view_apply_request(RequestView *self, const RequestData *data) {
   g_return_if_fail(REQUEST_IS_VIEW(self));
-  if (state == NULL) {
+  if (data == NULL) {
     return;
   }
 
-  request_top_bar_set_url(self->top_bar, request_state_get_url(state));
-  request_top_bar_set_method(self->top_bar, request_state_get_method(state));
+  request_top_bar_set_url(self->top_bar, data->url);
+  request_top_bar_set_method(self->top_bar, data->method);
 
   body_panel_clear(self->body_panel);
-  const char *body = request_state_get_body(state);
-  if (body != NULL && *body != '\0') {
-    body_panel_set_content(self->body_panel, body);
+  if (data->body != NULL && *data->body != '\0') {
+    body_panel_set_content(self->body_panel, data->body);
   }
 
   kv_list_view_clear_editable(self->params_list);
-  guint query_count = request_state_query_count(state);
+  guint query_count = request_data_query_count(data);
   for (guint i = 0; i < query_count; i++) {
-    const char *k = request_state_query_key(state, i);
-    const char *v = request_state_query_value(state, i);
+    const char *k = request_data_query_key(data, i);
+    const char *v = request_data_query_value(data, i);
     if (k != NULL) {
       kv_list_view_add_editable(self->params_list, k, v != NULL ? v : "");
     }
   }
 
   kv_list_view_clear_editable(self->headers_list);
-  guint header_count = request_state_headers_count(state);
+  guint header_count = request_data_headers_count(data);
   for (guint i = 0; i < header_count; i++) {
-    const char *k = request_state_header_key(state, i);
-    const char *v = request_state_header_value(state, i);
+    const char *k = request_data_header_key(data, i);
+    const char *v = request_data_header_value(data, i);
     if (k != NULL) {
       kv_list_view_add_editable(self->headers_list, k, v != NULL ? v : "");
     }
   }
 }
 
-static void capture_header_to_state(const char *key, const char *value,
-                                    gpointer user_data) {
-  request_state_add_header((RequestState *)user_data, key, value);
+static void capture_header_to_request(const char *key, const char *value,
+                                      gpointer user_data) {
+  request_data_add_header((RequestData *)user_data, key, value);
 }
 
-static void capture_param_to_state(const char *key, const char *value,
-                                   gpointer user_data) {
-  request_state_add_query((RequestState *)user_data, key, value);
+static void capture_param_to_request(const char *key, const char *value,
+                                     gpointer user_data) {
+  request_data_add_query((RequestData *)user_data, key, value);
 }
 
-RequestState *request_view_capture_state(RequestView *self) {
+RequestData *request_view_capture_request(RequestView *self) {
   g_return_val_if_fail(REQUEST_IS_VIEW(self), NULL);
 
-  RequestState *state = request_state_new();
+  RequestData *data = request_data_new();
 
-  request_state_set_url(state, request_top_bar_get_url(self->top_bar));
-  request_state_set_method(state, request_top_bar_get_method(self->top_bar));
+  request_data_set_url(data, request_top_bar_get_url(self->top_bar));
+  data->method = request_top_bar_get_method(self->top_bar);
 
   kv_list_view_for_each(self->headers_list, KV_LIST_ITER_EDITABLE,
-                        capture_header_to_state, state);
+                        capture_header_to_request, data);
   kv_list_view_for_each(self->params_list, KV_LIST_ITER_ALL,
-                        capture_param_to_state, state);
+                        capture_param_to_request, data);
 
   char *body = body_panel_get_content(self->body_panel);
   if (body != NULL && *body != '\0') {
-    request_state_set_body(state, body);
+    request_data_set_body(data, body);
   }
   g_free(body);
 
-  return state;
+  return data;
 }

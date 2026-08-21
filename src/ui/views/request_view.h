@@ -21,7 +21,7 @@
 
 #pragma once
 
-#include "../../models/request_state.h"
+#include "../../models/request_data.h"
 #include "../panels/request_top_bar.h"
 #include "../panels/body_panel.h"
 #include <gtk/gtk.h>
@@ -34,9 +34,7 @@ RequestView *request_view_new(void);
 RequestTopBar *request_view_get_top_bar(RequestView *self);
 BodyPanel *request_view_get_body_panel(RequestView *self);
 
-/* Loads neutral state into the view's widgets. The state is borrowed. */
-void request_view_apply_state(RequestView *self, const RequestState *state);
+void request_view_apply_request(RequestView *self, const RequestData *data);
 
-/* Captures the current widget state as a freshly allocated RequestState.
- * Caller owns the returned pointer (transfer: full). */
-RequestState *request_view_capture_state(RequestView *self);
+/* Caller owns the returned RequestData (transfer full). */
+RequestData *request_view_capture_request(RequestView *self);

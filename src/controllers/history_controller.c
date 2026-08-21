@@ -22,8 +22,6 @@
 #include "history_controller.h"
 
 #include "../http/response.h"
-#include "../models/request_state.h"
-#include "../models/request_state_codec.h"
 
 struct _HistoryController {
   GObject parent_instance;
@@ -53,9 +51,7 @@ static void on_history_entry_selected(HistoryView *view, gpointer entry_ptr,
   }
 
   if (self->request_view != NULL) {
-    RequestState *state = request_state_from_history_entry(entry);
-    request_view_apply_state(self->request_view, state);
-    request_state_free(state);
+    request_view_apply_request(self->request_view, &entry->request);
   }
 
   if (self->response_view != NULL) {

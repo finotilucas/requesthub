@@ -24,10 +24,13 @@
 #include "history.h"
 
 struct _HistoryStore {
-  GPtrArray *entries; /* HistoryEntry*, indice 0 = mais recente */
+  GPtrArray *entries; /* HistoryEntry*, index 0 = most recent */
   gsize max_entries;
   gchar *file_path;
 };
 
 /* history_persistence.c */
 gchar *history_default_file_path(void);
+
+/* history.c */
+gboolean history_header_key_is_sensitive(const char *key);
