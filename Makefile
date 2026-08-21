@@ -11,7 +11,11 @@ ifeq ($(findstring MINGW,$(UNAME_S)),MINGW)
     EXTRA_GIO_LIBS :=
 else
     EXE            :=
-    EXTRA_GIO_LIBS := -lgmodule-2.0 -lmount
+    ifeq ($(UNAME_S),Linux)
+        EXTRA_GIO_LIBS := -lgmodule-2.0 -lmount
+    else
+        EXTRA_GIO_LIBS :=
+    endif
     SANITIZE       := $(shell tmp=$$(mktemp 2>/dev/null) && \
         echo 'int main(void){return 0;}' | $(SAN_CC) -fsanitize=address,undefined -xc - -o $$tmp 2>/dev/null && \
         echo '-fsanitize=address,undefined'; rm -f $$tmp)
