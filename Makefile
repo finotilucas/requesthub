@@ -147,8 +147,10 @@ info:
 	@echo "sanitize  $(SANITIZE)"
 	@echo "arch      $(if $(ARCH_FLAGS),$(ARCH_FLAGS),(baseline))"
 
+# fontconfig/dbus/glib keep process-lifetime caches that trip LSan in every
+# GTK app; leak hunting belongs to make test and make valgrind.
 run: debug
-	./$(TARGET_DEBUG)
+	ASAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=print_stacktrace=1 ./$(TARGET_DEBUG)
 
 run-release: release
 	./$(TARGET_RELEASE)
