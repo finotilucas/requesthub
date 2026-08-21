@@ -147,17 +147,16 @@ flatpak run io.github.finotilucas.requesthub
 
 ## Continuous integration and releases
 
-Every push builds and tests on Arch, Fedora and Ubuntu (gcc), Windows via
-MSYS2 (`zig cc -target x86_64-windows-gnu`) and macOS via Homebrew (Apple
-clang). Pushing a `v*` tag additionally builds the AppImage and publishes it
-to a GitHub Release with generated notes:
+Every push builds and tests on Arch, Fedora and Ubuntu (gcc) and on macOS
+via Homebrew (Apple clang). Pushing a `v*` tag additionally builds the
+AppImage and publishes it to a GitHub Release with generated notes:
 
 ```sh
 git tag v0.2.0 && git push origin v0.2.0
 ```
 
-The Windows and macOS artifacts are bare binaries used for build validation;
-Linux is the supported desktop target.
+The macOS artifact is a bare binary used for build validation; Linux is
+the supported desktop target.
 
 ## Configuration and data
 

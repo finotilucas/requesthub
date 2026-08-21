@@ -5,21 +5,14 @@ endif
 SAN_CC ?= $(shell command -v clang >/dev/null 2>&1 && echo clang || echo gcc)
 
 UNAME_S := $(shell uname -s)
-ifeq ($(findstring MINGW,$(UNAME_S)),MINGW)
-    EXE            := .exe
-    SANITIZE       :=
-    EXTRA_GIO_LIBS :=
+ifeq ($(UNAME_S),Linux)
+    EXTRA_GIO_LIBS := -lgmodule-2.0 -lmount
 else
-    EXE            :=
-    ifeq ($(UNAME_S),Linux)
-        EXTRA_GIO_LIBS := -lgmodule-2.0 -lmount
-    else
-        EXTRA_GIO_LIBS :=
-    endif
-    SANITIZE       := $(shell tmp=$$(mktemp 2>/dev/null) && \
-        echo 'int main(void){return 0;}' | $(SAN_CC) -fsanitize=address,undefined -xc - -o $$tmp 2>/dev/null && \
-        echo '-fsanitize=address,undefined'; rm -f $$tmp)
+    EXTRA_GIO_LIBS :=
 endif
+SANITIZE := $(shell tmp=$$(mktemp 2>/dev/null) && \
+    echo 'int main(void){return 0;}' | $(SAN_CC) -fsanitize=address,undefined -xc - -o $$tmp 2>/dev/null && \
+    echo '-fsanitize=address,undefined'; rm -f $$tmp)
 
 # ==== Dependencies ==============================================
 
@@ -64,8 +57,8 @@ SOURCES         := $(filter-out $(GRESOURCE_C),$(shell find $(SRC_DIR) -name '*.
 DEBUG_OBJECTS   := $(SOURCES:%.c=$(OBJ_DIR)/debug/%.o)
 RELEASE_OBJECTS := $(SOURCES:%.c=$(OBJ_DIR)/release/%.o)
 
-TARGET_DEBUG    := $(BUILD_DIR)/requesthub$(EXE)
-TARGET_RELEASE  := $(BUILD_DIR)/release/requesthub$(EXE)
+TARGET_DEBUG    := $(BUILD_DIR)/requesthub
+TARGET_RELEASE  := $(BUILD_DIR)/release/requesthub
 
 # ==== App ====================================================================
 
@@ -119,7 +112,7 @@ test_http_perform_SRCS  := $(SRC_DIR)/http/http.c $(SRC_DIR)/http/http_pool.c \
                            $(SRC_DIR)/http/methods.c $(SRC_DIR)/http/request.c \
                            $(SRC_DIR)/http/response.c
 
-TEST_TARGETS := $(TESTS:%=$(BUILD_DIR)/test/%$(EXE))
+TEST_TARGETS := $(TESTS:%=$(BUILD_DIR)/test/%)
 
 $(OBJ_DIR)/test/%.o: %.c
 	@mkdir -p $(dir $@)
@@ -127,7 +120,7 @@ $(OBJ_DIR)/test/%.o: %.c
 	@$(SAN_CC) $(TEST_CFLAGS) -c $< -o $@
 
 define TEST_template
-$(BUILD_DIR)/test/$(1)$(EXE): $(patsubst %.c,$(OBJ_DIR)/test/%.o,tests/$(1).c $($(1)_SRCS))
+$(BUILD_DIR)/test/$(1): $(patsubst %.c,$(OBJ_DIR)/test/%.o,tests/$(1).c $($(1)_SRCS))
 	@mkdir -p $$(@D)
 	$$(SAN_CC) $$(SANITIZE) $$^ -o $$@ $$(TEST_LDLIBS)
 endef
@@ -192,16 +185,14 @@ appimage:
 appimage-clean:
 	rm -rf $(BUILD_DIR)/AppDir $(BUILD_DIR)/appimage-tools $(BUILD_DIR)/RequestHub-*.AppImage
 
-ifeq ($(EXE),)
 valgrind: debug
 	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./$(TARGET_DEBUG)
 
 compile_commands:
 	bear -- $(MAKE) clean debug
-endif
 
 -include $(DEBUG_OBJECTS:.o=.d) $(RELEASE_OBJECTS:.o=.d) \
-         $(TEST_TARGETS:$(BUILD_DIR)/test/%$(EXE)=$(OBJ_DIR)/test/tests/%.d)
+         $(TEST_TARGETS:$(BUILD_DIR)/test/%=$(OBJ_DIR)/test/tests/%.d)
 
 .PHONY: all debug release test clean run run-release rebuild deps-check info \
         install appimage appimage-clean valgrind compile_commands
