@@ -25,6 +25,7 @@
 #include "../../utils/format_response.h"
 
 #define HISTORY_VIEW_DEFAULT_WIDTH 260
+#define TIME_AGO_REFRESH_SECONDS 60
 #define PAGE_EMPTY "empty"
 #define PAGE_LIST "list"
 #define TRASH_ICON_NAME "user-trash-symbolic"
@@ -32,10 +33,12 @@
 struct _HistoryView {
   GtkBox parent_instance;
   HistoryService *service;
-  GListStore *items; /* de HistoryItem */
+  GListStore *items;     /* of HistoryItem */
+  GPtrArray *bound_rows; /* HistoryRow*, borrowed; kept in sync by bind/unbind */
   GtkStack *stack;
   GtkLabel *count_label;
   gulong service_handler;
+  guint time_tick_id;
 };
 
 enum { ENTRY_SELECTED, N_SIGNALS };
@@ -43,8 +46,8 @@ static guint signals[N_SIGNALS];
 
 enum { PROP_SERVICE = 1 };
 
-/* ---- HistoryItem: wrapper GObject de um HistoryEntry emprestado, para o
- * GListStore. O entry pertence ao HistoryService. ---- */
+/* GObject wrapper around a borrowed HistoryEntry, for the GListStore; the
+ * entry belongs to the HistoryService. */
 
 #define HISTORY_TYPE_ITEM (history_item_get_type())
 G_DECLARE_FINAL_TYPE(HistoryItem, history_item, HISTORY, ITEM, GObject)
@@ -65,8 +68,6 @@ static HistoryItem *history_item_new(HistoryEntry *entry) {
 static void history_item_class_init(HistoryItemClass *klass) { (void)klass; }
 static void history_item_init(HistoryItem *self) { (void)self; }
 
-/* ---- HistoryRow: uma linha da lista, com os filhos como campos ---- */
-
 #define HISTORY_TYPE_ROW (history_row_get_type())
 G_DECLARE_FINAL_TYPE(HistoryRow, history_row, HISTORY, ROW, GtkBox)
 
@@ -78,8 +79,8 @@ struct _HistoryRow {
   GtkLabel *time_label;
   GtkLabel *size_label;
   GtkLabel *time_ago_label;
-  HistoryView *view;   /* emprestado; a linha vive dentro da view */
-  HistoryEntry *entry; /* emprestado; valido enquanto bound */
+  HistoryView *view;   /* borrowed; the row lives inside the view */
+  HistoryEntry *entry; /* borrowed; valid while bound */
 };
 
 G_DEFINE_FINAL_TYPE(HistoryRow, history_row, GTK_TYPE_BOX)
@@ -231,12 +232,14 @@ static void history_row_class_init(HistoryRowClass *klass) { (void)klass; }
 static void history_row_bind(HistoryRow *self, HistoryEntry *entry) {
   self->entry = entry;
 
-  gtk_label_set_text(self->method_label, http_method_to_string(entry->method));
+  gtk_label_set_text(self->method_label,
+                     http_method_to_string(entry->request.method));
   replace_css_class(GTK_WIDGET(self->method_label), METHOD_CSS_CLASSES,
                     G_N_ELEMENTS(METHOD_CSS_CLASSES),
-                    method_css_class(entry->method));
+                    method_css_class(entry->request.method));
 
-  const char *url_text = entry->url != NULL ? entry->url : "";
+  const char *url_text =
+      entry->request.url != NULL ? entry->request.url : "";
   gtk_label_set_text(self->url_label, url_text);
   gtk_widget_set_tooltip_text(GTK_WIDGET(self->url_label), url_text);
 
@@ -264,8 +267,6 @@ static void history_row_bind(HistoryRow *self, HistoryEntry *entry) {
   g_free(relative);
 }
 
-/* ---- HistoryView ---- */
-
 G_DEFINE_FINAL_TYPE(HistoryView, history_view, GTK_TYPE_BOX)
 
 static void update_count_and_empty_state(HistoryView *self) {
@@ -287,9 +288,8 @@ static void update_count_and_empty_state(HistoryView *self) {
   gtk_stack_set_visible_child_name(self->stack, PAGE_LIST);
 }
 
-/* Reaproveita os wrappers existentes (por ponteiro de entry) para que a
- * identidade dos itens sobreviva a mudancas — e assim a selecao do
- * GtkSingleSelection tambem. */
+/* Reuse existing wrappers (keyed by entry pointer) so item identity
+ * survives changes — and with it the GtkSingleSelection selection. */
 static void refresh_items(HistoryView *self) {
   GListModel *model = G_LIST_MODEL(self->items);
   guint old_n = g_list_model_get_n_items(model);
@@ -305,14 +305,26 @@ static void refresh_items(HistoryView *self) {
   GPtrArray *fresh = g_ptr_array_new_full((guint)new_n, g_object_unref);
   for (gsize i = 0; i < new_n; i++) {
     HistoryEntry *entry = history_service_get(self->service, i);
-    HistoryItem *existing = g_hash_table_lookup(by_entry, entry);
-    g_ptr_array_add(fresh, existing != NULL ? g_object_ref(existing)
-                                            : history_item_new(entry));
+    HistoryItem *existing = NULL;
+    if (g_hash_table_steal_extended(by_entry, entry, NULL,
+                                    (gpointer *)&existing)) {
+      g_ptr_array_add(fresh, existing);
+    } else {
+      g_ptr_array_add(fresh, history_item_new(entry));
+    }
   }
 
   g_list_store_splice(self->items, 0, old_n, fresh->pdata, fresh->len);
-
   g_ptr_array_unref(fresh);
+
+  /* Dropped wrappers can outlive the splice inside the selection model while
+   * their entries are already freed by the service. */
+  GHashTableIter iter;
+  gpointer dropped;
+  g_hash_table_iter_init(&iter, by_entry);
+  while (g_hash_table_iter_next(&iter, NULL, &dropped)) {
+    HISTORY_ITEM(dropped)->entry = NULL;
+  }
   g_hash_table_destroy(by_entry);
 }
 
@@ -328,7 +340,7 @@ static void on_factory_setup(GtkSignalListItemFactory *factory,
 static void on_factory_bind(GtkSignalListItemFactory *factory,
                             GObject *list_item, gpointer user_data) {
   (void)factory;
-  (void)user_data;
+  HistoryView *self = HISTORY_VIEW(user_data);
 
   HistoryItem *item =
       HISTORY_ITEM(gtk_list_item_get_item(GTK_LIST_ITEM(list_item)));
@@ -338,32 +350,50 @@ static void on_factory_bind(GtkSignalListItemFactory *factory,
     return;
   }
   history_row_bind(row, item->entry);
+  if (self->bound_rows != NULL) {
+    g_ptr_array_add(self->bound_rows, row);
+  }
 }
 
 static void on_factory_unbind(GtkSignalListItemFactory *factory,
                               GObject *list_item, gpointer user_data) {
   (void)factory;
-  (void)user_data;
+  HistoryView *self = HISTORY_VIEW(user_data);
   HistoryRow *row =
       HISTORY_ROW(gtk_list_item_get_child(GTK_LIST_ITEM(list_item)));
   if (row != NULL) {
     row->entry = NULL;
+    /* bound_rows is already gone when the list view unbinds during dispose */
+    if (self->bound_rows != NULL) {
+      g_ptr_array_remove_fast(self->bound_rows, row);
+    }
   }
 }
 
-static void on_list_view_activate(GtkListView *view, guint position,
-                                  gpointer user_data) {
-  (void)view;
+static gboolean on_time_ago_tick(gpointer user_data) {
   HistoryView *self = HISTORY_VIEW(user_data);
-  HistoryItem *item =
-      g_list_model_get_item(G_LIST_MODEL(self->items), position);
-  if (item == NULL) {
-    return;
+
+  for (guint i = 0; i < self->bound_rows->len; i++) {
+    HistoryRow *row = g_ptr_array_index(self->bound_rows, i);
+    if (row->entry == NULL) {
+      continue;
+    }
+    gchar *relative = relative_time_string(row->entry->timestamp_ms);
+    gtk_label_set_text(row->time_ago_label, relative);
+    g_free(relative);
   }
-  if (item->entry != NULL) {
+  return G_SOURCE_CONTINUE;
+}
+
+static void on_selected_item_changed(GObject *selection, GParamSpec *pspec,
+                                     gpointer user_data) {
+  (void)pspec;
+  HistoryView *self = HISTORY_VIEW(user_data);
+  HistoryItem *item = gtk_single_selection_get_selected_item(
+      GTK_SINGLE_SELECTION(selection));
+  if (item != NULL && item->entry != NULL) {
     g_signal_emit(self, signals[ENTRY_SELECTED], 0, item->entry);
   }
-  g_object_unref(item);
 }
 
 static void on_clear_clicked(GtkButton *btn, gpointer user_data) {
@@ -398,26 +428,31 @@ static void history_view_constructed(GObject *object) {
   g_return_if_fail(HISTORY_IS_SERVICE(self->service));
 
   self->items = g_list_store_new(HISTORY_TYPE_ITEM);
+  self->bound_rows = g_ptr_array_new();
+  self->time_tick_id = g_timeout_add_seconds(TIME_AGO_REFRESH_SECONDS,
+                                             on_time_ago_tick, self);
 
   GtkListItemFactory *factory = gtk_signal_list_item_factory_new();
   g_signal_connect(factory, "setup", G_CALLBACK(on_factory_setup), self);
   g_signal_connect(factory, "bind", G_CALLBACK(on_factory_bind), self);
   g_signal_connect(factory, "unbind", G_CALLBACK(on_factory_unbind), self);
 
-  /* gtk_single_selection_new() toma posse da ref do modelo passada, entao
-   * damos uma ref extra para manter self->items vivo. */
+  /* gtk_single_selection_new() takes ownership of the model ref passed in,
+   * so take an extra ref to keep self->items alive. */
   GtkSingleSelection *selection =
       gtk_single_selection_new(G_LIST_MODEL(g_object_ref(self->items)));
   gtk_single_selection_set_autoselect(selection, FALSE);
   gtk_single_selection_set_can_unselect(selection, TRUE);
 
+  /* Selection drives the replay. single-click-activate is avoided on
+   * purpose: it makes the selection follow pointer hover. */
+  g_signal_connect_object(selection, "notify::selected-item",
+                          G_CALLBACK(on_selected_item_changed), self, 0);
+
   GtkListView *list_view =
       GTK_LIST_VIEW(gtk_list_view_new(GTK_SELECTION_MODEL(selection), factory));
-  gtk_list_view_set_single_click_activate(list_view, TRUE);
   gtk_list_view_set_show_separators(list_view, TRUE);
   gtk_widget_add_css_class(GTK_WIDGET(list_view), "history-list");
-  g_signal_connect(list_view, "activate", G_CALLBACK(on_list_view_activate),
-                   self);
 
   GtkWidget *scrolled = gtk_scrolled_window_new();
   gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled),
@@ -436,6 +471,8 @@ static void history_view_constructed(GObject *object) {
 
 static void history_view_dispose(GObject *object) {
   HistoryView *self = HISTORY_VIEW(object);
+  g_clear_handle_id(&self->time_tick_id, g_source_remove);
+  g_clear_pointer(&self->bound_rows, g_ptr_array_unref);
   if (self->service != NULL && self->service_handler != 0) {
     g_signal_handler_disconnect(self->service, self->service_handler);
     self->service_handler = 0;
@@ -457,8 +494,8 @@ static void history_view_class_init(HistoryViewClass *klass) {
                           G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY |
                               G_PARAM_STATIC_STRINGS));
 
-  /* O HistoryEntry* emitido e emprestado do HistoryService e so e valido
-   * durante a emissao do sinal. */
+  /* The emitted HistoryEntry* is borrowed from the HistoryService and only
+   * valid during the signal emission. */
   signals[ENTRY_SELECTED] = g_signal_new(
       "entry-selected", G_TYPE_FROM_CLASS(klass), G_SIGNAL_RUN_FIRST, 0, NULL,
       NULL, NULL, G_TYPE_NONE, 1, G_TYPE_POINTER);
