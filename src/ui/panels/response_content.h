@@ -1,6 +1,4 @@
 /*******************************************************************************
- * REQUEST HUB
- * =============================================================================
  * Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
  *
  * This file is part of RequestHub.
@@ -31,5 +29,4 @@
 G_DECLARE_FINAL_TYPE(ResponseContent, response_content, RESPONSE, CONTENT, GtkBox)
 
 ResponseContent *response_content_new(void);
-void response_content_clear(ResponseContent *self);
 void response_content_set_response(ResponseContent *self, HttpResponse *resp);

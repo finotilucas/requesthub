@@ -1,6 +1,4 @@
 /*******************************************************************************
- * REQUEST HUB
- * =============================================================================
  * Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
  *
  * This file is part of RequestHub.
@@ -22,8 +20,7 @@
  ******************************************************************************/
 
 #include "response_content.h"
-#include "../components/source_view.h"
-#include <cjson/cJSON.h>
+#include "../../utils/body_syntax.h"
 #include <curl/curl.h>
 #include <gtk/gtk.h>
 #include <gtksourceview/gtksource.h>
@@ -35,7 +32,7 @@ struct _ResponseContent {
   GtkSourceBuffer *body_buffer;
 };
 
-G_DEFINE_TYPE(ResponseContent, response_content, GTK_TYPE_BOX)
+G_DEFINE_FINAL_TYPE(ResponseContent, response_content, GTK_TYPE_BOX)
 
 static GtkWidget *create_shortcut_row(const char *action, const char *keys) {
   GtkWidget *box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 40);
@@ -54,6 +51,41 @@ static GtkWidget *create_shortcut_row(const char *action, const char *keys) {
   gtk_box_append(GTK_BOX(box), keys_label);
 
   return box;
+}
+
+static GtkSourceView *build_json_source_view(GtkSourceBuffer **out_buffer) {
+  GtkSourceBuffer *buffer = gtk_source_buffer_new(NULL);
+
+  GtkSourceLanguage *lang = gtk_source_language_manager_get_language(
+      gtk_source_language_manager_get_default(), "json");
+  if (lang != NULL) {
+    gtk_source_buffer_set_language(buffer, lang);
+    gtk_source_buffer_set_highlight_syntax(buffer, TRUE);
+  }
+
+  GtkSourceStyleScheme *scheme = gtk_source_style_scheme_manager_get_scheme(
+      gtk_source_style_scheme_manager_get_default(), "Adwaita-dark");
+  if (scheme != NULL) {
+    gtk_source_buffer_set_style_scheme(buffer, scheme);
+  }
+
+  GtkWidget *view = gtk_source_view_new_with_buffer(buffer);
+  gtk_source_view_set_show_line_numbers(GTK_SOURCE_VIEW(view), TRUE);
+  gtk_source_view_set_auto_indent(GTK_SOURCE_VIEW(view), TRUE);
+  gtk_source_view_set_tab_width(GTK_SOURCE_VIEW(view), 2);
+  gtk_source_view_set_insert_spaces_instead_of_tabs(GTK_SOURCE_VIEW(view),
+                                                    TRUE);
+
+  *out_buffer = buffer;
+  return GTK_SOURCE_VIEW(view);
+}
+
+static gboolean content_type_is_json(const char *content_type) {
+  if (content_type == NULL) {
+    return FALSE;
+  }
+  return g_str_has_prefix(content_type, "application/json") ||
+         g_strstr_len(content_type, -1, "+json") != NULL;
 }
 
 static void response_content_finalize(GObject *object) {
@@ -88,16 +120,9 @@ static void response_content_init(ResponseContent *self) {
                  create_shortcut_row("Send Request", "Ctrl + Enter"));
   gtk_box_append(GTK_BOX(shortcuts_container),
                  create_shortcut_row("Focus URL", "Ctrl + L"));
-  /*gtk_box_append(GTK_BOX(shortcuts_container),
-                 create_shortcut_row("Edit Cookies", "Ctrl + K"));
-  gtk_box_append(GTK_BOX(shortcuts_container),
-                 create_shortcut_row("Environment Editor", "Ctrl + E"));
-  gtk_box_append(GTK_BOX(shortcuts_container),
-  create_shortcut_row("Keyboard Shortcuts", "Ctrl + Shift + /"));*/
-
   gtk_box_append(GTK_BOX(empty_center_box), shortcuts_container);
 
-  self->body_view = GTK_SOURCE_VIEW(source_view_new(&self->body_buffer));
+  self->body_view = build_json_source_view(&self->body_buffer);
   gtk_text_view_set_editable(GTK_TEXT_VIEW(self->body_view), FALSE);
   gtk_text_view_set_monospace(GTK_TEXT_VIEW(self->body_view), TRUE);
 
@@ -118,11 +143,6 @@ ResponseContent *response_content_new(void) {
   return g_object_new(RESPONSE_TYPE_CONTENT, NULL);
 }
 
-void response_content_clear(ResponseContent *self) {
-  g_return_if_fail(RESPONSE_IS_CONTENT(self));
-  gtk_text_buffer_set_text(GTK_TEXT_BUFFER(self->body_buffer), "", -1);
-  gtk_stack_set_visible_child_name(self->stack, "empty");
-}
 
 void response_content_set_response(ResponseContent *self, HttpResponse *resp) {
   g_return_if_fail(RESPONSE_IS_CONTENT(self));
@@ -145,19 +165,20 @@ void response_content_set_response(ResponseContent *self, HttpResponse *resp) {
   }
 
   if (resp->body && g_utf8_validate(resp->body, -1, NULL)) {
-    cJSON *json = cJSON_Parse(resp->body);
-    if (json) {
-      json_buffer_set_from_cjson(GTK_TEXT_BUFFER(self->body_buffer), json);
-      cJSON_Delete(json);
-    } else if (resp->content_type != NULL &&
-               (g_str_has_prefix(resp->content_type, "application/json") ||
-                g_strstr_len(resp->content_type, -1, "+json") != NULL)) {
-      gchar *annotated = g_strdup_printf(
-          "/* Server advertised %s but body did not parse as JSON. */\n%s",
-          resp->content_type, resp->body);
-      gtk_text_buffer_set_text(GTK_TEXT_BUFFER(self->body_buffer), annotated,
-                               -1);
-      g_free(annotated);
+    if (content_type_is_json(resp->content_type)) {
+      gchar *pretty = body_syntax_format_json(resp->body);
+      if (pretty != NULL) {
+        gtk_text_buffer_set_text(GTK_TEXT_BUFFER(self->body_buffer), pretty,
+                                 -1);
+        g_free(pretty);
+      } else {
+        gchar *annotated = g_strdup_printf(
+            "/* Server advertised %s but body did not parse as JSON. */\n%s",
+            resp->content_type, resp->body);
+        gtk_text_buffer_set_text(GTK_TEXT_BUFFER(self->body_buffer), annotated,
+                                 -1);
+        g_free(annotated);
+      }
     } else {
       gtk_text_buffer_set_text(GTK_TEXT_BUFFER(self->body_buffer), resp->body,
                                -1);
