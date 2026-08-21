@@ -37,14 +37,13 @@ typedef struct {
 
 HttpResponse *http_response_new(void);
 
-/* Reconstroi uma resposta a partir de dados cacheados (replay do historico).
- * body/content_type podem ser NULL; mantem body_size == strlen(body). */
+/* Rebuilds a response from cached data (history replay). body/content_type
+ * may be NULL; keeps body_size == strlen(body). */
 HttpResponse *http_response_new_snapshot(long http_status, double total_time,
                                          const char *body,
                                          const char *content_type);
 
 void http_response_free(HttpResponse *response);
-/* Callback de escrita do curl; userp e um GString acumulando o corpo
- * (crescimento amortizado). O perform materializa em body/body_size. */
+/* curl write callback; userp is the GString that accumulates the body. */
 size_t http_response_write_callback(void *contents, size_t size, size_t nmemb,
                                     void *userp);

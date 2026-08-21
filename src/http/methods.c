@@ -25,8 +25,12 @@
 static const char *methods_strings[] = {"GET",   "POST", "PUT",     "DELETE",
                                         "PATCH", "HEAD", "OPTIONS", NULL};
 
+_Static_assert(sizeof(methods_strings) / sizeof(methods_strings[0]) ==
+                   HTTP_METHOD_COUNT + 1,
+               "methods_strings must list every HttpMethod plus NULL");
+
 const char *http_method_to_string(HttpMethod method) {
-  if ((unsigned)method <= (unsigned)HTTP_OPTIONS) {
+  if ((unsigned)method < HTTP_METHOD_COUNT) {
     return methods_strings[method];
   }
   return "UNKNOWN";

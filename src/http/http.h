@@ -24,4 +24,6 @@
 #include "request.h"
 #include "response.h"
 
+#define HTTP_DEFAULT_ACCEPT "*/*"
+
 HttpResponse *http_request_perform(HttpRequest *request);

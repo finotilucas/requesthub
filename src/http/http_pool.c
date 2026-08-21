@@ -109,7 +109,7 @@ void http_pool_cleanup(void) {
   global_pool.initialized = 0;
 }
 
-/* Ambas exigem pool_lock. */
+/* Both require pool_lock. */
 static CURL *reuse_idle_handle(time_t now) {
   for (int i = 0; i < MAX_POOL_SIZE; i++) {
     PooledConnection *slot = &global_pool.connections[i];
@@ -168,7 +168,7 @@ CURL *http_pool_acquire(void) {
     return created;
   }
 
-  /* Pool cheio: handle avulso, destruido no release. */
+  /* Pool full: untracked handle, destroyed on release. */
   CURL *unpooled_handle = curl_easy_init();
   if (unpooled_handle && global_share) {
     curl_easy_setopt(unpooled_handle, CURLOPT_SHARE, global_share);

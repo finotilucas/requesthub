@@ -21,8 +21,8 @@
 
 #pragma once
 
-/* A ordem destes valores está congelada: history.json grava o método como o
- * ordinal do enum. Novos métodos só podem ser acrescentados ao final. */
+/* The order of these values is frozen: history.json stores the method as
+ * the enum ordinal. New methods may only be appended at the end. */
 typedef enum {
   HTTP_GET,
   HTTP_POST,
@@ -32,6 +32,8 @@ typedef enum {
   HTTP_HEAD,
   HTTP_OPTIONS,
 } HttpMethod;
+
+#define HTTP_METHOD_COUNT 7
 
 const char *http_method_to_string(HttpMethod method);
 

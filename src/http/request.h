@@ -29,8 +29,8 @@ typedef struct {
   char *url;
   char *body;
   char *body_content_type;
-  GPtrArray *headers;      /* pares k,v achatados */
-  GPtrArray *query_params; /* strings "k=v" ja URL-encoded */
+  GPtrArray *headers;      /* flat k,v pairs */
+  GPtrArray *query_params; /* "k=v" strings, already URL-encoded */
   long timeout;
   long connect_timeout;
   long follow_redirects;
@@ -52,8 +52,8 @@ const char *http_request_header_key(const HttpRequest *request, guint index);
 
 const char *http_request_header_value(const HttpRequest *request, guint index);
 
-/* content_type (MIME) e opcional; quando presente e o request tem body, vira
- * o header Content-Type default se o usuario nao definiu um. */
+/* content_type (MIME) is optional; when set and the request has a body it
+ * becomes the default Content-Type header unless the user set one. */
 void http_request_set_body(HttpRequest *request, const char *body,
                            const char *content_type);
 

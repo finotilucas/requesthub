@@ -54,7 +54,7 @@ static void request_top_bar_init(RequestTopBar *self) {
 
   const char **methods = http_methods_get_list();
   GtkStringList *list = gtk_string_list_new(methods);
-  /* gtk_drop_down_new toma posse do modelo (transfer full) — sem unref. */
+
   self->method_dropdown =
       GTK_DROP_DOWN(gtk_drop_down_new(G_LIST_MODEL(list), NULL));
 
@@ -133,7 +133,7 @@ void request_top_bar_set_url(RequestTopBar *self, const char *url) {
 
 void request_top_bar_set_method(RequestTopBar *self, HttpMethod method) {
   g_return_if_fail(REQUEST_IS_TOP_BAR(self));
-  if (method < HTTP_GET || method > HTTP_OPTIONS) {
+  if ((guint)method >= HTTP_METHOD_COUNT) {
     return;
   }
   gtk_drop_down_set_selected(self->method_dropdown, (guint)method);

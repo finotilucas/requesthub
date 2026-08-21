@@ -105,7 +105,8 @@ static void add_default_headers(struct curl_slist **headers,
     }
   }
   if (!headers_contain_key(*headers, "Accept")) {
-    struct curl_slist *appended = curl_slist_append(*headers, "Accept: */*");
+    struct curl_slist *appended =
+        curl_slist_append(*headers, "Accept: " HTTP_DEFAULT_ACCEPT);
     if (appended != NULL) {
       *headers = appended;
     }
@@ -153,8 +154,8 @@ static void configure_curl_options(CURL *curl, HttpRequest *request,
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, *headers);
   }
 
-  /* Setar tudo incondicionalmente: handles reusados do pool nao podem herdar
-   * opcoes do request anterior. */
+  /* Set everything unconditionally: handles reused from the pool must not
+   * inherit options from the previous request. */
   curl_easy_setopt(curl, CURLOPT_TIMEOUT, request->timeout);
   curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, request->connect_timeout);
   curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION,
@@ -220,7 +221,7 @@ HttpResponse *http_request_perform(HttpRequest *request) {
     return NULL;
   }
 
-  /* CURLOPT_URL copia a string, entao so alocamos quando ha sufixo. */
+  /* CURLOPT_URL copies the string, so only allocate when a suffix exists. */
   gchar *query_suffix = build_query_suffix(request);
   gchar *final_url = (query_suffix != NULL)
                          ? g_strconcat(request->url, query_suffix, NULL)
