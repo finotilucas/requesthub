@@ -131,3 +131,11 @@
     background-color: #343a40;
     color: #f8f9fa;
 }
+
+.validation-success {
+    color: #26a269;
+}
+
+.validation-error {
+    color: #c01c28;
+}
