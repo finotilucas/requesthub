@@ -1,6 +1,4 @@
 /*******************************************************************************
- * REQUEST HUB
- * =============================================================================
  * Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
  *
  * This file is part of RequestHub.
@@ -23,8 +21,6 @@
 
 #include "format_response.h"
 
-#include <stdio.h>
-
 char *format_response_size(size_t bytes) {
   const char *units[] = {"B", "KB", "MB", "GB", "TB"};
   int i = 0;
@@ -40,9 +36,9 @@ char *format_response_size(size_t bytes) {
   return g_strdup_printf("%.2f %s", size, units[i]);
 }
 
-char *format_response_time(double milliseconds) {
-  if (milliseconds >= 1000.0) {
-    return g_strdup_printf("%.2f s", milliseconds / 1000.0);
+char *format_response_time(double seconds) {
+  if (seconds >= 1.0) {
+    return g_strdup_printf("%.2f s", seconds);
   }
-  return g_strdup_printf("%.0f ms", milliseconds);
+  return g_strdup_printf("%.0f ms", seconds * 1000.0);
 }

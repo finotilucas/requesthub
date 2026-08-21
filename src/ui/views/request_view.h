@@ -1,6 +1,4 @@
 /*******************************************************************************
- * REQUEST HUB
- * =============================================================================
  * Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
  *
  * This file is part of RequestHub.
@@ -23,20 +21,20 @@
 
 #pragma once
 
-#include "../../history/history.h"
-#include "../components/request_top_bar.h"
-#include "body_view.h"
-#include "headers_view.h"
-#include "params_view.h"
+#include "../../models/request_data.h"
+#include "../panels/request_top_bar.h"
+#include "../panels/body_panel.h"
 #include <gtk/gtk.h>
+
 
 #define REQUEST_TYPE_VIEW (request_view_get_type())
 G_DECLARE_FINAL_TYPE(RequestView, request_view, REQUEST, VIEW, GtkBox)
 
 RequestView *request_view_new(void);
 RequestTopBar *request_view_get_top_bar(RequestView *self);
-ParamsView *request_view_get_params_view(RequestView *self);
-HeadersView *request_view_get_headers_view(RequestView *self);
-BodyView *request_view_get_body_view(RequestView *self);
-void request_view_load_history_entry(RequestView *self,
-                                     const HistoryEntry *entry);
+BodyPanel *request_view_get_body_panel(RequestView *self);
+
+void request_view_apply_request(RequestView *self, const RequestData *data);
+
+/* Caller owns the returned RequestData (transfer full). */
+RequestData *request_view_capture_request(RequestView *self);

@@ -1,0 +1,46 @@
+name: build-and-test-macos
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    # zig cc 0.13 ships outdated libSystem stubs for the current macOS SDK
+    # (__availability_version_check, bzero); build with Apple clang instead.
+    env:
+      CC: clang
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          brew install \
+            pkgconf \
+            gtk4 \
+            libadwaita \
+            gtksourceview5 \
+            libxml2 \
+            libyaml \
+            cjson \
+            curl
+
+      # libxml2 and curl are keg-only in Homebrew; expose their .pc files.
+      - name: Configure pkg-config paths
+        run: |
+          echo "PKG_CONFIG_PATH=$(brew --prefix libxml2)/lib/pkgconfig:$(brew --prefix curl)/lib/pkgconfig" \
+            >> "$GITHUB_ENV"
+
+      - run: make deps-check
+      - run: make info
+      - run: make release
+      - run: make debug
+      - run: make test
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: requesthub-macos-arm64
+          path: build/release/requesthub

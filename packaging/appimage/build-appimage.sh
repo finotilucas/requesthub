@@ -49,16 +49,22 @@ make -C "${ROOT}" release
 
 mkdir -p "${TOOLS_DIR}"
 
+# Download to a temp name and rename: executing a just-written file can hit
+# ETXTBSY while file indexers still hold it open.
+fetch_tool() {
+  wget -q -O "${1}.part" "${2}"
+  chmod +x "${1}.part"
+  mv -f "${1}.part" "${1}"
+}
+
 if [[ ! -x "${LINUXDEPLOY}" ]]; then
   log "fetching linuxdeploy"
-  wget -q -O "${LINUXDEPLOY}" "${LINUXDEPLOY_URL}"
-  chmod +x "${LINUXDEPLOY}"
+  fetch_tool "${LINUXDEPLOY}" "${LINUXDEPLOY_URL}"
 fi
 
 if [[ ! -x "${GTK_PLUGIN}" ]]; then
   log "fetching linuxdeploy-plugin-gtk"
-  wget -q -O "${GTK_PLUGIN}" "${GTK_PLUGIN_URL}"
-  chmod +x "${GTK_PLUGIN}"
+  fetch_tool "${GTK_PLUGIN}" "${GTK_PLUGIN_URL}"
   # Modern GTK4 (Arch/Void/Fedora) no longer ships /usr/lib/gtk-4.0/;
   # IM modules and print backends are linked into libgtk-4 itself.
   sed -i \
@@ -69,7 +75,14 @@ fi
 if [[ ! -x "${APPIMAGETOOL}" ]]; then
   log "extracting linuxdeploy (for appimagetool)"
   rm -rf "${LD_EXTRACTED}"
-  ( cd "${TOOLS_DIR}" && rm -rf squashfs-root && "${LINUXDEPLOY}" --appimage-extract >/dev/null )
+  for attempt in 1 2 3 4 5; do
+    if ( cd "${TOOLS_DIR}" && rm -rf squashfs-root && \
+         "${LINUXDEPLOY}" --appimage-extract >/dev/null ); then
+      break
+    fi
+    [[ "${attempt}" -eq 5 ]] && die "could not extract linuxdeploy"
+    sleep 1
+  done
   mv "${TOOLS_DIR}/squashfs-root" "${LD_EXTRACTED}"
 fi
 
@@ -146,11 +159,30 @@ for round in 1 2 3 4 5; do
   [[ "${round}" -eq 5 ]] && die "lib closure did not converge"
 done
 
-# --- 7. AppRun hook: LD_LIBRARY_PATH ---------------------------------------
+# --- 7. patch linuxdeploy-plugin-gtk hook ----------------------------------
+#
+# The generated AppRun only sources apprun-hooks/linuxdeploy-plugin-gtk.sh.
+# That hook probes the portal/GSettings and exports GTK_THEME as a fallback.
+# GTK_THEME is a debug override for libadwaita: when it is set, libadwaita
+# skips loading its own stylesheet, so every Adw widget renders with plain
+# GTK metrics (view switcher tabs lose their padding, header bars misrender).
+# The app pins dark mode itself via AdwStyleManager(FORCE_DARK), which needs
+# that stylesheet — so clear the variable at the end of the hook, where it
+# wins over the plugin's export.
 
-cat > "${APPDIR}/apprun-hooks/00-library-path.sh" <<'EOF'
-APPDIR="${APPDIR:-"$(dirname "$(realpath "$0")")"}"
-export LD_LIBRARY_PATH="$APPDIR/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+gtk_hook="${APPDIR}/apprun-hooks/linuxdeploy-plugin-gtk.sh"
+[[ -f "${gtk_hook}" ]] || die "plugin-gtk hook missing; AppRun env would be broken"
+log "patching plugin-gtk hook: clear GTK_THEME and GDK_BACKEND"
+cat >> "${gtk_hook}" <<'EOF'
+
+# --- requesthub overrides (appended by build-appimage.sh) ------------------
+# GTK_THEME disables the libadwaita stylesheet; the app forces dark mode via
+# AdwStyleManager instead.
+unset GTK_THEME
+# The plugin pins GDK_BACKEND=x11 for an old GTK4-on-Wayland crash that no
+# longer reproduces; let GTK pick the native backend.
+unset GDK_BACKEND
+# --- end requesthub overrides ----------------------------------------------
 EOF
 
 # --- 8. bundle GtkSourceView-5 data ----------------------------------------
@@ -162,7 +194,23 @@ if [[ -d "${gsv}" ]]; then
   cp -r "${gsv}/." "${APPDIR}/usr/share/gtksourceview-5/"
 fi
 
-# --- 9. refresh pixbuf loaders cache ---------------------------------------
+# --- 9. bundle Adwaita icon theme ------------------------------------------
+
+adwaita_icons="/usr/share/icons/Adwaita"
+if [[ -d "${adwaita_icons}" ]]; then
+  log "bundling Adwaita icon theme"
+  mkdir -p "${APPDIR}/usr/share/icons"
+  cp -rL "${adwaita_icons}" "${APPDIR}/usr/share/icons/Adwaita"
+  # Refresh the icon cache so GTK doesn't fall back to per-file scans.
+  if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+    gtk-update-icon-cache -q -t -f "${APPDIR}/usr/share/icons/Adwaita" || true
+  fi
+else
+  log "warning: Adwaita icon theme not found at ${adwaita_icons}; AppImage"
+  log "         will fall back to the host's icon theme at runtime"
+fi
+
+# --- 10. refresh pixbuf loaders cache --------------------------------------
 
 pixbuf_cache="${APPDIR}/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache"
 pixbuf_loaders="${APPDIR}/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders"
@@ -173,10 +221,33 @@ if [[ -d "${pixbuf_loaders}" && -x "${SHIMS_DIR}/gdk-pixbuf-query-loaders" ]]; t
   sed -i "s|${pixbuf_loaders}/||g" "${pixbuf_cache}"
 fi
 
-# --- 10. package via appimagetool ------------------------------------------
+# --- 11. package via appimagetool ------------------------------------------
 
 log "packaging ${OUTPUT}"
 rm -f "${BUILD_DIR}/${OUTPUT}"
 ARCH="${ARCH}" "${APPIMAGETOOL}" "${APPDIR}" "${BUILD_DIR}/${OUTPUT}"
+[[ -s "${BUILD_DIR}/${OUTPUT}" ]] || die "appimagetool produced no output"
+
+# --- 12. diagnostic summary ------------------------------------------------
+
+log "build summary:"
+log "  AppDir size:       $(du -sh "${APPDIR}" | cut -f1)"
+log "  AppImage size:     $(du -sh "${BUILD_DIR}/${OUTPUT}" | cut -f1)"
+adw_so="$(find "${APPDIR}" -name 'libadwaita-1.so*' -print -quit 2>/dev/null)"
+log "  libadwaita:        ${adw_so:-NOT BUNDLED}"
+gtk_so="$(find "${APPDIR}" -name 'libgtk-4.so*' -print -quit 2>/dev/null)"
+log "  libgtk-4:          ${gtk_so:-NOT BUNDLED}"
+if [[ -d "${APPDIR}/usr/share/icons/Adwaita" ]]; then
+  log "  Adwaita icons:     $(du -sh "${APPDIR}/usr/share/icons/Adwaita" | cut -f1)"
+else
+  log "  Adwaita icons:     NOT BUNDLED"
+fi
+schemas_count=$(find "${APPDIR}/usr/share/glib-2.0/schemas" -name '*.xml' 2>/dev/null | wc -l)
+log "  GSettings schemas: ${schemas_count} files"
+if grep -q '^unset GTK_THEME' "${gtk_hook}"; then
+  log "  GTK_THEME:         cleared (libadwaita stylesheet active)"
+else
+  log "  GTK_THEME:         WARNING: override missing"
+fi
 
 log "done: ${BUILD_DIR}/${OUTPUT}"

@@ -1,0 +1,42 @@
+/*******************************************************************************
+ * Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
+ *
+ * This file is part of RequestHub.
+ *
+ * RequestHub is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 2 of the License, or
+ * any later version.
+ *
+ * RequestHub is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with RequestHub. If not, see <https://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ ******************************************************************************/
+
+#pragma once
+
+#include "../history/history.h"
+
+#include <glib-object.h>
+
+G_BEGIN_DECLS
+
+#define HISTORY_TYPE_SERVICE (history_service_get_type())
+G_DECLARE_FINAL_TYPE(HistoryService, history_service, HISTORY, SERVICE, GObject)
+
+HistoryService *history_service_new(gsize max_entries);
+
+gsize         history_service_count(HistoryService *self);
+HistoryEntry *history_service_get  (HistoryService *self, gsize index);
+
+void history_service_record(HistoryService *self, HistoryEntry *entry);
+void history_service_remove(HistoryService *self, HistoryEntry *entry);
+void history_service_clear (HistoryService *self);
+
+G_END_DECLS

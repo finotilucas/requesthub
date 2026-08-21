@@ -1,6 +1,4 @@
 /*******************************************************************************
- * REQUEST HUB
- * =============================================================================
  * Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
  *
  * This file is part of RequestHub.
@@ -21,12 +19,11 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#ifndef HTTP_H
-#define HTTP_H
+#pragma once
 
 #include "request.h"
 #include "response.h"
 
-HttpResponse *http_request_perform(HttpRequest *request);
+#define HTTP_DEFAULT_ACCEPT "*/*"
 
-#endif
+HttpResponse *http_request_perform(HttpRequest *request);

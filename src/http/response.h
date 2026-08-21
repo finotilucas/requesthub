@@ -1,6 +1,4 @@
 /*******************************************************************************
- * REQUEST HUB
- * =============================================================================
  * Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
  *
  * This file is part of RequestHub.
@@ -21,8 +19,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#ifndef RESPONSE_H
-#define RESPONSE_H
+#pragma once
 
 #include <curl/curl.h>
 #include <stddef.h>
@@ -32,22 +29,21 @@
 typedef struct {
   char *body;
   char *content_type;
-  char *header_location;
-  char *etag;
-  struct curl_slist *all_headers;
   size_t body_size;
   double total_time;
-  double download_size;
   long http_status;
-  long content_length;
   CURLcode curl_code;
 } HttpResponse;
 
-HttpResponse *http_response_create(void);
+HttpResponse *http_response_new(void);
+
+/* Rebuilds a response from cached data (history replay). body/content_type
+ * may be NULL; keeps body_size == strlen(body). */
+HttpResponse *http_response_new_snapshot(long http_status, double total_time,
+                                         const char *body,
+                                         const char *content_type);
+
 void http_response_free(HttpResponse *response);
+/* curl write callback; userp is the GString that accumulates the body. */
 size_t http_response_write_callback(void *contents, size_t size, size_t nmemb,
                                     void *userp);
-size_t http_response_header_callback(char *buffer, size_t size, size_t nitems,
-                                     void *userp);
-
-#endif

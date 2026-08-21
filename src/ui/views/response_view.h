@@ -1,6 +1,4 @@
 /*******************************************************************************
- * REQUEST HUB
- * =============================================================================
  * Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
  *
  * This file is part of RequestHub.
@@ -25,7 +23,6 @@
 #include "../../http/response.h"
 #include <gtk/gtk.h>
 
-#define RESPONSE_VIEW_MIN_WIDTH 400
 
 #define RESPONSE_TYPE_VIEW (response_view_get_type())
 G_DECLARE_FINAL_TYPE(ResponseView, response_view, RESPONSE, VIEW, GtkBox)

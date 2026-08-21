@@ -21,6 +21,7 @@ jobs:
             pkgconf \
             glib2 \
             gtk4 \
+            libadwaita \
             gtksourceview5 \
             libxml2 \
             libyaml \

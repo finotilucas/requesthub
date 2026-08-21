@@ -1,6 +1,4 @@
 /*******************************************************************************
- * REQUEST HUB
- * =============================================================================
  * Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
  *
  * This file is part of RequestHub.
@@ -23,7 +21,25 @@
 
 #include "http_pool.h"
 
+#include <glib.h>
+#include <time.h>
+
+#define MAX_POOL_SIZE 16
+#define CONNECTION_TIMEOUT_SECONDS 60
+
+typedef struct {
+  CURL *handle;
+  time_t last_used;
+  int in_use;
+} PooledConnection;
+
+typedef struct {
+  PooledConnection connections[MAX_POOL_SIZE];
+  int initialized;
+} ConnectionPool;
+
 static ConnectionPool global_pool = {0};
+static GMutex pool_lock;
 static CURLSH *global_share = NULL;
 
 static void init_curlshare(void) {
@@ -48,7 +64,7 @@ static void cleanup_curlshare(void) {
   }
 }
 
-static void selective_cleanup(CURL *handle) {
+static void reset_request_options(CURL *handle) {
   if (!handle)
     return;
 
@@ -64,8 +80,6 @@ void http_pool_init(void) {
   if (global_pool.initialized)
     return;
 
-  pthread_mutex_init(&global_pool.lock, NULL);
-
   for (int i = 0; i < MAX_POOL_SIZE; i++) {
     global_pool.connections[i].handle = NULL;
     global_pool.connections[i].last_used = 0;
@@ -80,7 +94,7 @@ void http_pool_cleanup(void) {
   if (!global_pool.initialized)
     return;
 
-  pthread_mutex_lock(&global_pool.lock);
+  g_mutex_lock(&pool_lock);
 
   for (int i = 0; i < MAX_POOL_SIZE; i++) {
     if (global_pool.connections[i].handle) {
@@ -89,11 +103,49 @@ void http_pool_cleanup(void) {
     }
   }
 
-  pthread_mutex_unlock(&global_pool.lock);
-  pthread_mutex_destroy(&global_pool.lock);
+  g_mutex_unlock(&pool_lock);
 
   cleanup_curlshare();
   global_pool.initialized = 0;
+}
+
+/* Both require pool_lock. */
+static CURL *reuse_idle_handle(time_t now) {
+  for (int i = 0; i < MAX_POOL_SIZE; i++) {
+    PooledConnection *slot = &global_pool.connections[i];
+    if (slot->handle == NULL || slot->in_use) {
+      continue;
+    }
+    if (now - slot->last_used >= CONNECTION_TIMEOUT_SECONDS) {
+      curl_easy_cleanup(slot->handle);
+      slot->handle = NULL;
+      continue;
+    }
+    slot->in_use = 1;
+    slot->last_used = now;
+    return slot->handle;
+  }
+  return NULL;
+}
+
+static CURL *create_pooled_handle(time_t now) {
+  for (int i = 0; i < MAX_POOL_SIZE; i++) {
+    PooledConnection *slot = &global_pool.connections[i];
+    if (slot->handle != NULL) {
+      continue;
+    }
+    CURL *handle = curl_easy_init();
+    if (handle != NULL) {
+      slot->handle = handle;
+      slot->in_use = 1;
+      slot->last_used = now;
+      if (global_share) {
+        curl_easy_setopt(handle, CURLOPT_SHARE, global_share);
+      }
+    }
+    return handle;
+  }
+  return NULL;
 }
 
 CURL *http_pool_acquire(void) {
@@ -101,59 +153,27 @@ CURL *http_pool_acquire(void) {
     http_pool_init();
   }
 
-  pthread_mutex_lock(&global_pool.lock);
-
   time_t now = time(NULL);
 
-  for (int i = 0; i < MAX_POOL_SIZE; i++) {
-    if (global_pool.connections[i].handle &&
-        !global_pool.connections[i].in_use) {
-
-      if ((now - global_pool.connections[i].last_used) <
-          CONNECTION_TIMEOUT_SECONDS) {
-
-        global_pool.connections[i].in_use = 1;
-        global_pool.connections[i].last_used = now;
-
-        CURL *handle = global_pool.connections[i].handle;
-        pthread_mutex_unlock(&global_pool.lock);
-
-        selective_cleanup(handle);
-
-        return handle;
-      } else {
-        curl_easy_cleanup(global_pool.connections[i].handle);
-        global_pool.connections[i].handle = NULL;
-      }
-    }
+  g_mutex_lock(&pool_lock);
+  CURL *idle = reuse_idle_handle(now);
+  if (idle != NULL) {
+    g_mutex_unlock(&pool_lock);
+    reset_request_options(idle);
+    return idle;
+  }
+  CURL *created = create_pooled_handle(now);
+  g_mutex_unlock(&pool_lock);
+  if (created != NULL) {
+    return created;
   }
 
-  for (int i = 0; i < MAX_POOL_SIZE; i++) {
-    if (!global_pool.connections[i].handle) {
-      CURL *handle = curl_easy_init();
-      if (handle) {
-        global_pool.connections[i].handle = handle;
-        global_pool.connections[i].in_use = 1;
-        global_pool.connections[i].last_used = now;
-
-        if (global_share) {
-          curl_easy_setopt(handle, CURLOPT_SHARE, global_share);
-        }
-      }
-
-      pthread_mutex_unlock(&global_pool.lock);
-      return handle;
-    }
+  /* Pool full: untracked handle, destroyed on release. */
+  CURL *unpooled_handle = curl_easy_init();
+  if (unpooled_handle && global_share) {
+    curl_easy_setopt(unpooled_handle, CURLOPT_SHARE, global_share);
   }
-
-  pthread_mutex_unlock(&global_pool.lock);
-
-  CURL *temp_handle = curl_easy_init();
-  if (temp_handle && global_share) {
-    curl_easy_setopt(temp_handle, CURLOPT_SHARE, global_share);
-  }
-
-  return temp_handle;
+  return unpooled_handle;
 }
 
 void http_pool_release(CURL *handle) {
@@ -163,18 +183,18 @@ void http_pool_release(CURL *handle) {
     return;
   }
 
-  pthread_mutex_lock(&global_pool.lock);
+  g_mutex_lock(&pool_lock);
 
   for (int i = 0; i < MAX_POOL_SIZE; i++) {
     if (global_pool.connections[i].handle == handle) {
       global_pool.connections[i].in_use = 0;
       global_pool.connections[i].last_used = time(NULL);
-      pthread_mutex_unlock(&global_pool.lock);
+      g_mutex_unlock(&pool_lock);
       return;
     }
   }
 
-  pthread_mutex_unlock(&global_pool.lock);
+  g_mutex_unlock(&pool_lock);
 
   curl_easy_cleanup(handle);
 }

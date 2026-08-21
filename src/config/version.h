@@ -1,6 +1,4 @@
 /*******************************************************************************
- * REQUEST HUB
- * =============================================================================
  * Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
  *
  * This file is part of RequestHub.
@@ -21,10 +19,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#ifndef REQUESTHUB_VERSION_H
-#define REQUESTHUB_VERSION_H
+#pragma once
 
 #define REQUESTHUB_VERSION "0.0.1"
 #define REQUESTHUB_USER_AGENT "requesthub/" REQUESTHUB_VERSION
-
-#endif

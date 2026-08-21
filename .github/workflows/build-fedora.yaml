@@ -20,6 +20,7 @@ jobs:
             git \
             glib2-devel \
             gtk4-devel \
+            libadwaita-devel \
             gtksourceview5-devel \
             libxml2-devel \
             libyaml-devel \
