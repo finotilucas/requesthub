@@ -1,6 +1,4 @@
 /*******************************************************************************
- * REQUEST HUB
- * =============================================================================
  * Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
  *
  * This file is part of RequestHub.
@@ -21,22 +19,19 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#ifndef BODY_VALIDATOR_H
-#define BODY_VALIDATOR_H
+#pragma once
 
 #include <glib.h>
 
-gboolean body_validator_validate_json(const char *content,
-                                      const char **error_msg);
+gboolean body_syntax_validate_json(const char *content,
+                                   const char **error_msg);
 
-gboolean body_validator_validate_xml(const char *content,
-                                     const char **error_msg);
+gboolean body_syntax_validate_xml(const char *content,
+                                  const char **error_msg);
 
-gboolean body_validator_validate_yaml(const char *content,
-                                      const char **error_msg);
+gboolean body_syntax_validate_yaml(const char *content,
+                                   const char **error_msg);
 
-char *body_validator_format_json(const char *content);
+char *body_syntax_format_json(const char *content);
 
-char *body_validator_format_xml(const char *content);
-
-#endif
+char *body_syntax_format_xml(const char *content);

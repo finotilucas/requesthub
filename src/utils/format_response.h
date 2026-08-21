@@ -1,6 +1,4 @@
 /*******************************************************************************
- * REQUEST HUB
- * =============================================================================
  * Copyright (C) 2026 Lucas Finoti <lucas.finoti@protonmail.com>
  *
  * This file is part of RequestHub.
@@ -21,12 +19,9 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  ******************************************************************************/
 
-#ifndef FORMAT_RESPONSE_H
-#define FORMAT_RESPONSE_H
+#pragma once
 
 #include <glib.h>
 
 char *format_response_size(size_t bytes);
-char *format_response_time(double milliseconds);
-
-#endif
+char *format_response_time(double seconds);
