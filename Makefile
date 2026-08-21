@@ -33,18 +33,21 @@ YAML_CFLAGS    := $(shell pkg-config --cflags yaml-0.1 2>/dev/null)
 YAML_LIBS      := $(shell pkg-config --libs yaml-0.1 2>/dev/null || echo -lyaml)
 CJSON_CFLAGS   := $(shell pkg-config --cflags libcjson 2>/dev/null)
 CJSON_LIBS     := $(shell pkg-config --libs libcjson 2>/dev/null || echo -lcjson)
+CURL_CFLAGS    := $(shell pkg-config --cflags libcurl 2>/dev/null)
+CURL_LIBS      := $(shell pkg-config --libs libcurl 2>/dev/null || echo -lcurl)
 
 # ==== Flags ==================================================================
 
 WARNINGS       := -Wall -Wextra -Werror
 CFLAGS_COMMON  := -std=gnu11 $(WARNINGS) -MMD -MP \
-                  $(PKG_CFLAGS) $(CJSON_CFLAGS) $(LIBXML2_CFLAGS) $(YAML_CFLAGS)
+                  $(PKG_CFLAGS) $(CJSON_CFLAGS) $(LIBXML2_CFLAGS) \
+                  $(YAML_CFLAGS) $(CURL_CFLAGS)
 ARCH_FLAGS     ?=
 CFLAGS_DEBUG   := -g $(SANITIZE) $(CFLAGS_COMMON)
 CFLAGS_RELEASE := -O2 -DNDEBUG $(ARCH_FLAGS) $(CFLAGS_COMMON)
 
 LDLIBS         := $(PKG_LIBS) $(CJSON_LIBS) $(LIBXML2_LIBS) $(YAML_LIBS) \
-                  $(EXTRA_GIO_LIBS) -lcurl -lm
+                  $(EXTRA_GIO_LIBS) $(CURL_LIBS) -lm
 
 # ==== Layout =================================================================
 
@@ -133,6 +136,20 @@ $(foreach t,$(TESTS),$(eval $(call TEST_template,$(t))))
 test: $(TEST_TARGETS)
 	@for t in $(TEST_TARGETS); do echo "==> $$t"; $$t || exit $$?; done
 
+# ==== Install ================================================================
+
+APP_ID := io.github.finotilucas.requesthub
+PREFIX ?= /usr/local
+
+install: release
+	install -Dm0755 $(TARGET_RELEASE) $(DESTDIR)$(PREFIX)/bin/requesthub
+	install -Dm0644 packaging/appimage/$(APP_ID).desktop \
+	    $(DESTDIR)$(PREFIX)/share/applications/$(APP_ID).desktop
+	install -Dm0644 packaging/appimage/$(APP_ID).metainfo.xml \
+	    $(DESTDIR)$(PREFIX)/share/metainfo/$(APP_ID).metainfo.xml
+	install -Dm0644 assets/icons/$(APP_ID).svg \
+	    $(DESTDIR)$(PREFIX)/share/icons/hicolor/scalable/apps/$(APP_ID).svg
+
 # ==== Utilities ==============================================================
 
 REQUIRED_PKGS := $(PKGS) libxml-2.0 libcurl
@@ -187,4 +204,4 @@ endif
          $(TEST_TARGETS:$(BUILD_DIR)/test/%$(EXE)=$(OBJ_DIR)/test/tests/%.d)
 
 .PHONY: all debug release test clean run run-release rebuild deps-check info \
-        appimage appimage-clean valgrind compile_commands
+        install appimage appimage-clean valgrind compile_commands
