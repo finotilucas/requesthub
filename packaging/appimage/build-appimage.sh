@@ -49,16 +49,22 @@ make -C "${ROOT}" release
 
 mkdir -p "${TOOLS_DIR}"
 
+# Download to a temp name and rename: executing a just-written file can hit
+# ETXTBSY while file indexers still hold it open.
+fetch_tool() {
+  wget -q -O "${1}.part" "${2}"
+  chmod +x "${1}.part"
+  mv -f "${1}.part" "${1}"
+}
+
 if [[ ! -x "${LINUXDEPLOY}" ]]; then
   log "fetching linuxdeploy"
-  wget -q -O "${LINUXDEPLOY}" "${LINUXDEPLOY_URL}"
-  chmod +x "${LINUXDEPLOY}"
+  fetch_tool "${LINUXDEPLOY}" "${LINUXDEPLOY_URL}"
 fi
 
 if [[ ! -x "${GTK_PLUGIN}" ]]; then
   log "fetching linuxdeploy-plugin-gtk"
-  wget -q -O "${GTK_PLUGIN}" "${GTK_PLUGIN_URL}"
-  chmod +x "${GTK_PLUGIN}"
+  fetch_tool "${GTK_PLUGIN}" "${GTK_PLUGIN_URL}"
   # Modern GTK4 (Arch/Void/Fedora) no longer ships /usr/lib/gtk-4.0/;
   # IM modules and print backends are linked into libgtk-4 itself.
   sed -i \
@@ -69,7 +75,14 @@ fi
 if [[ ! -x "${APPIMAGETOOL}" ]]; then
   log "extracting linuxdeploy (for appimagetool)"
   rm -rf "${LD_EXTRACTED}"
-  ( cd "${TOOLS_DIR}" && rm -rf squashfs-root && "${LINUXDEPLOY}" --appimage-extract >/dev/null )
+  for attempt in 1 2 3 4 5; do
+    if ( cd "${TOOLS_DIR}" && rm -rf squashfs-root && \
+         "${LINUXDEPLOY}" --appimage-extract >/dev/null ); then
+      break
+    fi
+    [[ "${attempt}" -eq 5 ]] && die "could not extract linuxdeploy"
+    sleep 1
+  done
   mv "${TOOLS_DIR}/squashfs-root" "${LD_EXTRACTED}"
 fi
 
@@ -148,41 +161,29 @@ done
 
 # --- 7. patch linuxdeploy-plugin-gtk hook ----------------------------------
 #
-# The generated AppRun only sources apprun-hooks/linuxdeploy-plugin-gtk.sh
-# (extra files in apprun-hooks/ are ignored). That plugin queries the desktop
-# portal + GSettings for color-scheme and falls back to GTK_THEME=Adwaita:light
-# when nothing answers (typical on KDE / non-GNOME hosts). GTK_THEME is honored
-# by GTK at startup, so the app boots in light mode before AdwStyleManager can
-# override, producing a visually broken Adwaita+light/dark mix.
-#
-# We append our pins at the END of the hook so they win when the env is
-# exported. We also force the Adwaita icon theme so the bundled Adwaita icons
-# beat the user's gtk-icon-theme-name=breeze-dark / Papirus / etc.
+# The generated AppRun only sources apprun-hooks/linuxdeploy-plugin-gtk.sh.
+# That hook probes the portal/GSettings and exports GTK_THEME as a fallback.
+# GTK_THEME is a debug override for libadwaita: when it is set, libadwaita
+# skips loading its own stylesheet, so every Adw widget renders with plain
+# GTK metrics (view switcher tabs lose their padding, header bars misrender).
+# The app pins dark mode itself via AdwStyleManager(FORCE_DARK), which needs
+# that stylesheet — so clear the variable at the end of the hook, where it
+# wins over the plugin's export.
 
 gtk_hook="${APPDIR}/apprun-hooks/linuxdeploy-plugin-gtk.sh"
-if [[ -f "${gtk_hook}" ]]; then
-  log "patching plugin-gtk hook to force Adwaita:dark"
-  cat >> "${gtk_hook}" <<'EOF'
+[[ -f "${gtk_hook}" ]] || die "plugin-gtk hook missing; AppRun env would be broken"
+log "patching plugin-gtk hook: clear GTK_THEME and GDK_BACKEND"
+cat >> "${gtk_hook}" <<'EOF'
 
 # --- requesthub overrides (appended by build-appimage.sh) ------------------
-# Pin the libadwaita color scheme; the plugin's portal/gsettings detection
-# defaults to light on KDE/Sway/etc., which fights AdwStyleManager(FORCE_DARK).
-export GTK_THEME="Adwaita:dark"
-# Match icon theme to the bundled assets (we ship /usr/share/icons/Adwaita
-# inside the AppImage; without this the host's gtk-icon-theme-name wins).
-export GTK_ICON_THEME_NAME="Adwaita"
-# The plugin sets GDK_BACKEND=x11 to dodge an old GTK4-on-Wayland crash that
-# no longer reproduces on current GTK4 + libadwaita. Forcing x11 means
-# Wayland users get XWayland, which can misrender HiDPI scaling and degrade
-# input. Clear it so GTK4 picks the user's native backend ($WAYLAND_DISPLAY
-# → wayland, $DISPLAY → x11). Users hitting an edge-case crash can still
-# set GDK_BACKEND=x11 manually before launching the AppImage.
+# GTK_THEME disables the libadwaita stylesheet; the app forces dark mode via
+# AdwStyleManager instead.
+unset GTK_THEME
+# The plugin pins GDK_BACKEND=x11 for an old GTK4-on-Wayland crash that no
+# longer reproduces; let GTK pick the native backend.
 unset GDK_BACKEND
 # --- end requesthub overrides ----------------------------------------------
 EOF
-else
-  log "warning: linuxdeploy-plugin-gtk.sh hook not found; theme may misrender"
-fi
 
 # --- 8. bundle GtkSourceView-5 data ----------------------------------------
 
@@ -225,6 +226,7 @@ fi
 log "packaging ${OUTPUT}"
 rm -f "${BUILD_DIR}/${OUTPUT}"
 ARCH="${ARCH}" "${APPIMAGETOOL}" "${APPDIR}" "${BUILD_DIR}/${OUTPUT}"
+[[ -s "${BUILD_DIR}/${OUTPUT}" ]] || die "appimagetool produced no output"
 
 # --- 12. diagnostic summary ------------------------------------------------
 
@@ -242,7 +244,10 @@ else
 fi
 schemas_count=$(find "${APPDIR}/usr/share/glib-2.0/schemas" -name '*.xml' 2>/dev/null | wc -l)
 log "  GSettings schemas: ${schemas_count} files"
-theme_line="$(grep -E '^export GTK_THEME=' "${APPDIR}/apprun-hooks/linuxdeploy-plugin-gtk.sh" 2>/dev/null | tail -1)"
-log "  GTK_THEME (final): ${theme_line:-NOT SET}"
+if grep -q '^unset GTK_THEME' "${gtk_hook}"; then
+  log "  GTK_THEME:         cleared (libadwaita stylesheet active)"
+else
+  log "  GTK_THEME:         WARNING: override missing"
+fi
 
 log "done: ${BUILD_DIR}/${OUTPUT}"
