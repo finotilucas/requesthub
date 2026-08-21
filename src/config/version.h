@@ -21,5 +21,5 @@
 
 #pragma once
 
-#define REQUESTHUB_VERSION "0.0.1"
+#define REQUESTHUB_VERSION "0.1.1"
 #define REQUESTHUB_USER_AGENT "requesthub/" REQUESTHUB_VERSION
