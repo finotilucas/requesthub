@@ -1,5 +1,4 @@
 # Flathub submission manifest: sources are pinned to release tags.
-# Before submitting, create the v0.1.2 tag and fill in its commit below.
 app-id: io.github.finotilucas.requesthub
 runtime: org.gnome.Platform
 runtime-version: '49'
@@ -51,4 +50,4 @@ modules:
       - type: git
         url: https://github.com/finotilucas/requesthub.git
         tag: v0.1.2
-        # commit: <sha of the v0.1.2 tag>
+        commit: 25d8f311d7160f7d8660b3212b2f49c56680770d
