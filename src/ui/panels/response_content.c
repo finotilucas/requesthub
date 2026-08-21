@@ -21,6 +21,7 @@
 
 #include "response_content.h"
 #include "../../utils/body_syntax.h"
+#include "../components/source_editor.h"
 #include <curl/curl.h>
 #include <gtk/gtk.h>
 #include <gtksourceview/gtksource.h>
@@ -53,33 +54,6 @@ static GtkWidget *create_shortcut_row(const char *action, const char *keys) {
   return box;
 }
 
-static GtkSourceView *build_json_source_view(GtkSourceBuffer **out_buffer) {
-  GtkSourceBuffer *buffer = gtk_source_buffer_new(NULL);
-
-  GtkSourceLanguage *lang = gtk_source_language_manager_get_language(
-      gtk_source_language_manager_get_default(), "json");
-  if (lang != NULL) {
-    gtk_source_buffer_set_language(buffer, lang);
-    gtk_source_buffer_set_highlight_syntax(buffer, TRUE);
-  }
-
-  GtkSourceStyleScheme *scheme = gtk_source_style_scheme_manager_get_scheme(
-      gtk_source_style_scheme_manager_get_default(), "Adwaita-dark");
-  if (scheme != NULL) {
-    gtk_source_buffer_set_style_scheme(buffer, scheme);
-  }
-
-  GtkWidget *view = gtk_source_view_new_with_buffer(buffer);
-  gtk_source_view_set_show_line_numbers(GTK_SOURCE_VIEW(view), TRUE);
-  gtk_source_view_set_auto_indent(GTK_SOURCE_VIEW(view), TRUE);
-  gtk_source_view_set_tab_width(GTK_SOURCE_VIEW(view), 2);
-  gtk_source_view_set_insert_spaces_instead_of_tabs(GTK_SOURCE_VIEW(view),
-                                                    TRUE);
-
-  *out_buffer = buffer;
-  return GTK_SOURCE_VIEW(view);
-}
-
 static gboolean content_type_is_json(const char *content_type) {
   if (content_type == NULL) {
     return FALSE;
@@ -88,15 +62,8 @@ static gboolean content_type_is_json(const char *content_type) {
          g_strstr_len(content_type, -1, "+json") != NULL;
 }
 
-static void response_content_finalize(GObject *object) {
-  ResponseContent *self = RESPONSE_CONTENT(object);
-  if (self->body_buffer)
-    g_object_unref(self->body_buffer);
-  G_OBJECT_CLASS(response_content_parent_class)->finalize(object);
-}
-
 static void response_content_class_init(ResponseContentClass *klass) {
-  G_OBJECT_CLASS(klass)->finalize = response_content_finalize;
+  (void)klass;
 }
 
 static void response_content_init(ResponseContent *self) {
@@ -122,7 +89,9 @@ static void response_content_init(ResponseContent *self) {
                  create_shortcut_row("Focus URL", "Ctrl + L"));
   gtk_box_append(GTK_BOX(empty_center_box), shortcuts_container);
 
-  self->body_view = build_json_source_view(&self->body_buffer);
+  self->body_view = source_editor_new("json", 2);
+  self->body_buffer = GTK_SOURCE_BUFFER(
+      gtk_text_view_get_buffer(GTK_TEXT_VIEW(self->body_view)));
   gtk_text_view_set_editable(GTK_TEXT_VIEW(self->body_view), FALSE);
   gtk_text_view_set_monospace(GTK_TEXT_VIEW(self->body_view), TRUE);
 

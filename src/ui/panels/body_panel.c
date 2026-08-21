@@ -21,6 +21,7 @@
 
 #include "body_panel.h"
 #include "../../utils/body_syntax.h"
+#include "../components/source_editor.h"
 #include <gtk/gtk.h>
 #include <gtksourceview/gtksource.h>
 
@@ -70,9 +71,9 @@ struct _BodyPanel {
 
 G_DEFINE_FINAL_TYPE(BodyPanel, body_panel, GTK_TYPE_BOX)
 
-/* Workaround GtkSourceView: trocar a linguagem nao re-highlighta o conteudo
- * ja presente no buffer; um insert+delete no-op forca o refresh. A acao
- * irreversivel evita poluir o undo do usuario com a edicao fantasma. */
+/* GtkSourceView workaround: switching the language does not re-highlight
+ * content already in the buffer; a no-op insert+delete forces the refresh.
+ * The irreversible action keeps the phantom edit out of the user's undo. */
 static void refresh_highlight(GtkSourceBuffer *buffer) {
   GtkTextIter start, end;
 
@@ -151,8 +152,6 @@ static gboolean on_validate_timeout(gpointer user_data) {
   return G_SOURCE_REMOVE;
 }
 
-/* Validar a cada tecla copia e parseia o buffer inteiro; o debounce limita o
- * custo a uma validacao por pausa de digitacao. */
 static void on_buffer_changed(GtkTextBuffer *buffer, gpointer user_data) {
   (void)buffer;
   BodyPanel *self = BODY_PANEL(user_data);
@@ -239,34 +238,20 @@ static GtkWidget *build_toolbar(BodyPanel *self) {
 }
 
 static GtkWidget *build_editor(BodyPanel *self) {
-  self->source_buffer = gtk_source_buffer_new(NULL);
+  self->source_view =
+      source_editor_new(BODY_TYPES[BODY_TYPE_JSON].language_id, 4);
+  self->source_buffer = GTK_SOURCE_BUFFER(
+      gtk_text_view_get_buffer(GTK_TEXT_VIEW(self->source_view)));
 
-  GtkSourceLanguage *language = gtk_source_language_manager_get_language(
-      gtk_source_language_manager_get_default(),
-      BODY_TYPES[BODY_TYPE_JSON].language_id);
-  gtk_source_buffer_set_language(self->source_buffer, language);
-
-  GtkSourceStyleScheme *scheme = gtk_source_style_scheme_manager_get_scheme(
-      gtk_source_style_scheme_manager_get_default(), "Adwaita-dark");
-  if (scheme != NULL) {
-    gtk_source_buffer_set_style_scheme(self->source_buffer, scheme);
-  }
+  gtk_source_view_set_highlight_current_line(self->source_view, TRUE);
+  gtk_source_view_set_show_right_margin(self->source_view, TRUE);
+  gtk_source_view_set_right_margin_position(self->source_view, 100);
+  gtk_source_view_set_indent_on_tab(self->source_view, TRUE);
 
   GdkRGBA red_color = {1.0, 0.0, 0.0, 1.0};
   self->error_tag = gtk_text_buffer_create_tag(
       GTK_TEXT_BUFFER(self->source_buffer), "syntax-error", "underline",
       PANGO_UNDERLINE_ERROR, "underline-rgba", &red_color, NULL);
-
-  self->source_view =
-      GTK_SOURCE_VIEW(gtk_source_view_new_with_buffer(self->source_buffer));
-  gtk_source_view_set_show_line_numbers(self->source_view, TRUE);
-  gtk_source_view_set_highlight_current_line(self->source_view, TRUE);
-  gtk_source_view_set_show_right_margin(self->source_view, TRUE);
-  gtk_source_view_set_right_margin_position(self->source_view, 100);
-  gtk_source_view_set_auto_indent(self->source_view, TRUE);
-  gtk_source_view_set_indent_on_tab(self->source_view, TRUE);
-  gtk_source_view_set_tab_width(self->source_view, 4);
-  gtk_source_view_set_insert_spaces_instead_of_tabs(self->source_view, TRUE);
 
   g_signal_connect(self->source_buffer, "changed",
                    G_CALLBACK(on_buffer_changed), self);
@@ -352,13 +337,8 @@ static void body_panel_set_content_type(BodyPanel *self, BodyContentType type) {
 
   self->current_type = type;
 
-  const char *language_id = BODY_TYPES[type].language_id;
-  GtkSourceLanguage *language =
-      language_id != NULL
-          ? gtk_source_language_manager_get_language(
-                gtk_source_language_manager_get_default(), language_id)
-          : NULL;
-  gtk_source_buffer_set_language(self->source_buffer, language);
+  source_editor_set_language(self->source_buffer,
+                             BODY_TYPES[type].language_id);
 
   GtkTextIter start, end;
   gtk_text_buffer_get_bounds(GTK_TEXT_BUFFER(self->source_buffer), &start,
